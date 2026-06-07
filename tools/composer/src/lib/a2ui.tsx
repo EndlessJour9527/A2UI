@@ -29,6 +29,7 @@ import dynamic from 'next/dynamic';
 import {A2UIViewer as BaseA2UIViewer} from '@a2ui/react';
 import {viewerTheme} from './viewerTheme';
 import type {A2UIComponent, SpecVersion} from '@/types/widget';
+import {getRendererForCatalog} from './renderer-registry';
 
 const V09Viewer = dynamic(() => import('./v09Viewer').then(m => ({default: m.V09Viewer})), {
   ssr: false,
@@ -39,11 +40,32 @@ export interface A2UIViewerProps {
   components: A2UIComponent[];
   data?: Record<string, unknown>;
   specVersion?: SpecVersion;
+  catalogId?: string | null;
+  messages?: any[];
   onAction?: (action: unknown) => void;
   className?: string;
 }
 
-export function A2UIViewer({specVersion = '0.8', components, ...props}: A2UIViewerProps) {
+export function A2UIViewer({
+  specVersion = '0.8',
+  components,
+  catalogId,
+  messages,
+  ...props
+}: A2UIViewerProps) {
+  const CustomRenderer = getRendererForCatalog(catalogId);
+  if (CustomRenderer) {
+    return (
+      <CustomRenderer
+        root={props.root}
+        components={components}
+        data={props.data}
+        onAction={props.onAction}
+        messages={messages}
+      />
+    );
+  }
+
   if (specVersion === '0.9') {
     return (
       <V09Viewer

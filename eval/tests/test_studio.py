@@ -23,7 +23,13 @@ from pathlib import Path
 from a2ui_eval.studio_adapter import ProtocolEvalAdapter
 from a2ui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
 from a2ui_eval.studio_storage import StudioStorage
-from a2ui_eval.studio_types import StudioCaseSelection, StudioGroupSelection, StudioExecutionMode
+from a2ui_eval.studio_types import (
+    StudioCaseSelection,
+    StudioGroupSelection,
+    StudioExecutionMode,
+    StudioAnnotation,
+    StudioAnnotationType,
+)
 
 CATALOG_PATH = (
     Path(__file__).resolve().parents[2]
@@ -158,4 +164,92 @@ def test_catalog_registry_resolution(tmp_path: Path):
     resolved = registry.resolve_profile("a2ui-basic-v0_9")
     assert resolved.profile_id == "a2ui-basic-v0_9"
     assert resolved.catalog_schema is not None
+
+
+def test_protocol_adapter_categorizes_errors():
+    adapter = ProtocolEvalAdapter(CATALOG_PATH)
+    selection = StudioCaseSelection(case_id="case-1", group_id="group-a", prompt="Render hello")
+    
+    # 1. No JSON
+    res1 = adapter.evaluate_case("run-1", selection, "hello world")
+    assert res1.status.value == "failed_protocol"
+    assert res1.validation["pass"] is False
+    assert res1.validation["issues"][0]["category"] == "schema_structure"
+    
+    # 2. Invalid schema (missing root or invalid component name)
+    invalid_comp = """<a2ui-json>
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "main",
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "main",
+      "components": [
+        {
+          "id": "root",
+          "component": "NonExistentComponent"
+        }
+      ]
+    }
+  }
+]
+</a2ui-json>"""
+    res2 = adapter.evaluate_case("run-1", selection, invalid_comp)
+    assert res2.status.value == "failed_protocol"
+    assert res2.validation["pass"] is False
+    assert res2.validation["issues"][0]["category"] in ("schema_hallucination", "schema_component")
+
+
+def test_studio_annotations(tmp_path: Path):
+    run_definition = build_run_definition(tmp_path)
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = StudioOrchestrator(storage, ProtocolEvalAdapter(CATALOG_PATH))
+    orchestrator.initialize_run(run_definition)
+    
+    # Check initial annotations
+    annos = storage.read_annotations("run-test-123", "group-a", "case-1")
+    assert len(annos["labels"]) == 0
+    assert len(annos["notes"]) == 0
+    
+    # Write label annotation
+    label_ann = StudioAnnotation(
+        annotation_id="ann-1",
+        created_at=datetime.now(timezone.utc),
+        author="tester",
+        type=StudioAnnotationType.LABEL,
+        value="correct",
+    )
+    storage.write_annotation("run-test-123", "group-a", "case-1", label_ann)
+    
+    # Read back
+    annos = storage.read_annotations("run-test-123", "group-a", "case-1")
+    assert len(annos["labels"]) == 1
+    assert annos["labels"][0]["value"] == "correct"
+    
+    # Write note annotation
+    note_ann = StudioAnnotation(
+        annotation_id="ann-2",
+        created_at=datetime.now(timezone.utc),
+        author="tester",
+        type=StudioAnnotationType.NOTE,
+        value="This is a note",
+    )
+    storage.write_annotation("run-test-123", "group-a", "case-1", note_ann)
+    
+    # Read back
+    annos = storage.read_annotations("run-test-123", "group-a", "case-1")
+    assert len(annos["notes"]) == 1
+    assert annos["notes"][0]["value"] == "This is a note"
+    
+    # Verify index contains count
+    cases_index_path = run_definition.storage_root / "indexes" / "cases.json"
+    cases_index = json.loads(cases_index_path.read_text(encoding="utf-8"))
+    assert cases_index[0]["annotationCount"] == 2
+
 

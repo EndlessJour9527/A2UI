@@ -71,6 +71,7 @@ nav:
       - v0.9 (Draft):
           - A2UI Protocol: specification/v0.9-a2ui.md
           - Evolution Guide: specification/v0.9-evolution-guide.md
+      - Eval Studio v0.1 (Draft): specification/eval-studio-v0.1.md
   - Ecosystem:
       - A2UI in the World: ecosystem/a2ui-in-the-world.md
       - Community Renderers: ecosystem/renderers.md

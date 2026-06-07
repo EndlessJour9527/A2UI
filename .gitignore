@@ -7,8 +7,6 @@ dist
 .idea/
 *.pyc
 .angular/
-
-# MkDocs build output
 site/
 
 # Python virtual environment

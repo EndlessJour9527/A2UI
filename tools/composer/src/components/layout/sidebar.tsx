@@ -16,8 +16,8 @@
 
 'use client';
 
-import {useState} from 'react';
-import {Menu} from 'lucide-react';
+import {useState, useEffect} from 'react';
+import {Menu, ChevronRight} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {SidebarHeader} from './sidebar-header';
 import {SidebarNav} from './sidebar-nav';
@@ -26,19 +26,26 @@ import {SidebarWidgets} from './sidebar-widgets';
 import {Button} from '@/components/ui/button';
 
 export function Sidebar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setIsOpen(false);
+    }
+  }, []);
 
   return (
     <>
-      {/* Mobile toggle button */}
+      {/* Universal expand/toggle button */}
       {!isOpen && (
         <Button
           variant="ghost"
           size="icon"
-          className="fixed left-4 top-4 z-50 md:hidden cursor-pointer"
+          className="fixed left-4 top-4 z-50 h-9 w-9 md:h-8 md:w-8 rounded-full border border-border bg-white/80 backdrop-blur shadow-sm hover:bg-white cursor-pointer transition-all duration-200 flex items-center justify-center"
           onClick={() => setIsOpen(true)}
         >
-          <Menu className="h-5 w-5" />
+          <ChevronRight className="hidden md:block h-4 w-4 text-muted-foreground" />
+          <Menu className="block md:hidden h-5 w-5 text-muted-foreground" />
         </Button>
       )}
 
@@ -53,17 +60,26 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed z-40 flex h-full w-[220px] flex-col gap-4 border-2 border-white bg-white/50 p-3 transition-transform md:relative md:translate-x-0 rounded-lg',
-          isOpen ? 'translate-x-0' : '-translate-x-full',
+          'fixed z-40 flex h-full flex-col bg-white/50 transition-all duration-300 ease-in-out rounded-lg overflow-hidden',
+          isOpen
+            ? 'w-[220px] p-3 border-2 border-white translate-x-0 md:relative'
+            : 'w-0 p-0 border-0 -translate-x-full md:translate-x-0 md:relative md:w-0 md:-mr-2'
         )}
       >
-        <SidebarHeader />
-        <hr />
-        <VersionSelector />
-        <hr />
-        <SidebarNav onNavigate={() => setIsOpen(false)} />
-        <hr />
-        <SidebarWidgets onNavigate={() => setIsOpen(false)} />
+        <div
+          className={cn(
+            'flex flex-col gap-4 w-[192px] transition-opacity duration-200',
+            isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          )}
+        >
+          <SidebarHeader onCollapse={() => setIsOpen(false)} />
+          <hr />
+          <VersionSelector />
+          <hr />
+          <SidebarNav onNavigate={() => setIsOpen(false)} />
+          <hr />
+          <SidebarWidgets onNavigate={() => setIsOpen(false)} />
+        </div>
       </aside>
     </>
   );

@@ -1,0 +1,1568 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "/a2ui/catalog.json",
+  "title": "Ink A2UI Catalog",
+  "description": "Unified catalog of Ink components available to the A2UI renderer. The root structure follows the A2UI v0.9 basic catalog style, while component names and payloads match Ink's current updateComponents format.",
+  "catalogId": "/a2ui/catalog.json",
+  "components": {
+    "view": {
+      "type": "object",
+      "description": "Basic container component with flexbox-style layout support.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "view"
+            },
+            "component": {
+              "const": "view"
+            },
+            "props": {
+              "$ref": "#/$defs/ViewProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "row": {
+      "type": "object",
+      "description": "Flex row container. Ink normalizes both `Row` and `row` to this component.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "row"
+            },
+            "component": {
+              "const": "row"
+            },
+            "props": {
+              "$ref": "#/$defs/FlexLayoutProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "column": {
+      "type": "object",
+      "description": "Flex column container. Ink normalizes both `Column` and `column` to this component.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "column"
+            },
+            "component": {
+              "const": "column"
+            },
+            "props": {
+              "$ref": "#/$defs/FlexLayoutProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "scroll-view": {
+      "type": "object",
+      "description": "Scrollable container supporting horizontal, vertical, and auto-scrolling modes.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "scroll-view"
+            },
+            "component": {
+              "const": "scroll-view"
+            },
+            "props": {
+              "$ref": "#/$defs/ScrollViewProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "text": {
+      "type": "object",
+      "description": "Text content component.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "text"
+            },
+            "component": {
+              "const": "text"
+            },
+            "props": {
+              "$ref": "#/$defs/TextProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "calendar": {
+      "type": "object",
+      "description": "Display-only calendar component that should prefer week layout and should use eventSource to return public holidays whenever possible.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "calendar"
+            },
+            "component": {
+              "const": "calendar"
+            },
+            "props": {
+              "$ref": "#/$defs/CalendarProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "chart": {
+      "type": "object",
+      "description": "Chart component supporting bar, line, area, pie, radar, scatter, and funnel visualizations.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "chart"
+            },
+            "component": {
+              "const": "chart"
+            },
+            "props": {
+              "$ref": "#/$defs/ChartProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "card": {
+      "type": "object",
+      "description": "Container card component with optional cover, title, and footer sections.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "card"
+            },
+            "component": {
+              "const": "card"
+            },
+            "props": {
+              "$ref": "#/$defs/CardProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "error-state": {
+      "type": "object",
+      "description": "Compact status or error presentation component with icon and text.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/InkComponentCommon"
+        },
+        {
+          "$ref": "#/$defs/CatalogComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "error-state"
+            },
+            "component": {
+              "const": "error-state"
+            },
+            "props": {
+              "$ref": "#/$defs/ErrorStateProps"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  },
+  "$defs": {
+    "ComponentId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The unique identifier for a component inside the same A2UI surface."
+    },
+    "AccessibilityAttributes": {
+      "type": "object",
+      "description": "Attributes used to improve accessibility for assistive technologies.",
+      "properties": {
+        "label": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Short accessible label for the component."
+        },
+        "description": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Additional accessible description for the component."
+        }
+      },
+      "additionalProperties": false
+    },
+    "DataBinding": {
+      "type": "object",
+      "description": "A JSON Pointer-like binding to a value in the current data model.",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to a bound value in the current data model."
+        }
+      },
+      "required": ["path"],
+      "additionalProperties": false
+    },
+    "FunctionCall": {
+      "type": "object",
+      "description": "Declarative function call expression reserved for A2UI-compatible catalogs.",
+      "properties": {
+        "call": {
+          "type": "string",
+          "description": "Function name to call."
+        },
+        "args": {
+          "type": "object",
+          "description": "Arguments passed to the function call.",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DynamicValue"
+              },
+              {
+                "type": "object"
+              }
+            ]
+          }
+        },
+        "returnType": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "array", "object", "any", "void"],
+          "default": "any"
+        }
+      },
+      "required": ["call"],
+      "additionalProperties": false
+    },
+    "DynamicValue": {
+      "description": "A literal value, data binding, or function call expression.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array"
+        },
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "$ref": "#/$defs/FunctionCall"
+        }
+      ]
+    },
+    "DynamicString": {
+      "description": "Represents a string literal, bound string, or function call returning a string.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicNumber": {
+      "description": "Represents a number literal, bound number, or function call returning a number.",
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "number"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicBoolean": {
+      "description": "Represents a boolean literal, bound boolean, or function call returning a boolean.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "boolean"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicArray": {
+      "description": "Represents an array literal, bound array, or function call returning an array.",
+      "oneOf": [
+        {
+          "type": "array"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "array"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicObject": {
+      "description": "Represents an object literal, bound object, or function call returning an object.",
+      "oneOf": [
+        {
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "object"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "DynamicStringList": {
+      "description": "Represents a string array literal, bound string array, or function call returning an array.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "array"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChildList": {
+      "description": "Static child ids or a dynamic child template descriptor.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ComponentId"
+          },
+          "description": "A static list of child component ids."
+        },
+        {
+          "type": "object",
+          "description": "A dynamic child template generated from data.",
+          "properties": {
+            "componentId": {
+              "$ref": "#/$defs/ComponentId"
+            },
+            "path": {
+              "type": "string",
+              "description": "Path to the list in the data model."
+            }
+          },
+          "required": ["componentId", "path"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ComponentCommon": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ComponentId"
+        },
+        "accessibility": {
+          "$ref": "#/$defs/AccessibilityAttributes"
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": true
+    },
+    "CatalogComponentCommon": {
+      "type": "object",
+      "properties": {
+        "weight": {
+          "$ref": "#/$defs/DynamicNumber",
+          "description": "Relative weight inside row or column, similar to flex-grow."
+        }
+      },
+      "additionalProperties": true
+    },
+    "theme": {
+      "type": "object",
+      "properties": {
+        "iconUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "An icon identifying the agent or tool associated with the surface."
+        },
+        "agentDisplayName": {
+          "type": "string",
+          "description": "Display name for the agent or tool associated with the surface."
+        }
+      },
+      "additionalProperties": true
+    },
+    "InkComponentCommon": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ComponentCommon"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "view",
+                "row",
+                "column",
+                "scroll-view",
+                "text",
+                "calendar",
+                "chart",
+                "card",
+                "error-state"
+              ],
+              "description": "Ink A2UI component type."
+            },
+            "component": {
+              "type": "string",
+              "enum": [
+                "view",
+                "row",
+                "column",
+                "scroll-view",
+                "text",
+                "calendar",
+                "chart",
+                "card",
+                "error-state"
+              ],
+              "description": "Alias for type, accepted by Ink parser."
+            },
+            "props": {
+              "type": "object",
+              "default": {}
+            },
+            "children": {
+              "$ref": "#/$defs/ChildList"
+            }
+          },
+          "anyOf": [
+            {
+              "required": ["type"]
+            },
+            {
+              "required": ["component"]
+            }
+          ],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "BaseProps": {
+      "type": "object",
+      "properties": {
+      },
+      "additionalProperties": true
+    },
+    "ViewProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/BaseProps"
+        }
+      ]
+    },
+    "FlexLayoutProps": {
+      "type": "object",
+      "properties": {
+        "justify": {
+          "description": "Main-axis alignment keyword.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "start",
+                "center",
+                "end",
+                "spaceBetween",
+                "spaceAround",
+                "spaceEvenly",
+                "stretch"
+              ]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "align": {
+          "description": "Cross-axis alignment keyword.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["start", "center", "end", "stretch"]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "TextProps": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/DynamicString"
+        }
+      },
+      "required": ["content"],
+      "additionalProperties": true
+    },
+    "CalendarProps": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Calendar layout mode.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["month", "week"]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Selected date in YYYY-MM-DD form."
+        },
+        "displayDate": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Focus date used to determine the visible month or week."
+        },
+        "locale": {
+          "description": "Display locale.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["en", "en-US", "zh", "zh-CN"]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "weekStart": {
+          "description": "First day of week. Accepts monday/mon/1 or sunday/sun/0.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["monday", "mon", "1", "sunday", "sun", "0"]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "eventSource": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Inline iCalendar text used for event and holiday annotations."
+        }
+      },
+      "additionalProperties": true
+    },
+    "ChartSeriesItem": {
+      "type": "object",
+      "properties": {
+        "yName": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Primary field name used as the numeric value. For cartesian charts such as `bar`, `line`, `area`, and `scatter`, this field should resolve to numbers in `data`. `yName` and `xName` must be provided together when either one is used."
+        },
+        "yKey": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Alias of yName."
+        },
+        "xName": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Primary field name used as the x/category field. `xName` and `yName` must be provided together when either one is used. For `bar`, `xName` usually points to the category label field. For `line`, `area`, and `scatter`, `xName` should preferably resolve to numeric values in `data`, or to parseable datetime strings when `x-axis.valueType` is set to `DateTime`. For `line` and `area`, plain category text such as `Mon` or `西汉末年 (2年)` is also supported and will be laid out in `data` order using the item index while preserving the original labels."
+        },
+        "xKey": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Alias of xName."
+        },
+        "dataSource": {
+          "$ref": "#/$defs/DynamicArray",
+          "description": "Optional per-series data source."
+        },
+        "smooth": {
+          "$ref": "#/$defs/DynamicBoolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ChartSeriesList": {
+      "description": "An array of up to 4 chart series configuration objects, or a dynamic binding/function returning such an array.",
+      "oneOf": [
+        {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/ChartSeriesItem"
+          }
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "array"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChartStripLine": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "value": {
+          "$ref": "#/$defs/DynamicNumber",
+          "description": "Alias of start."
+        },
+        "dashArray": {
+          "$ref": "#/$defs/DynamicArray"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ChartStripLineList": {
+      "description": "A list of strip-line definitions, or a dynamic binding/function returning such a list.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChartStripLine"
+          }
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "array"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChartAxisConfig": {
+      "type": "object",
+      "properties": {
+        "minimum": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "min": {
+          "$ref": "#/$defs/DynamicNumber",
+          "description": "Alias of minimum."
+        },
+        "maximum": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "max": {
+          "$ref": "#/$defs/DynamicNumber",
+          "description": "Alias of maximum."
+        },
+        "interval": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "showAxisLine": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showGridLines": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showLabels": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showTicks": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "tickCount": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "tickLength": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "title": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Y-axis title. Prefer including the unit in the title whenever possible, for example `Revenue (10k CNY)`, `Temperature (deg C)`, or `Latency (ms)`."
+        },
+        "labelFormat": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "format": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Alias of labelFormat."
+        },
+        "opposedPosition": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "stripLines": {
+          "$ref": "#/$defs/ChartStripLineList"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ChartXAxisConfig": {
+      "type": "object",
+      "properties": {
+        "valueType": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Optional x-axis value type, such as `DateTime`. Use `DateTime` only when `series[].xName` points to parseable datetime string values. If omitted, x values are expected to be numeric. Setting this does not make arbitrary category text valid as an x-coordinate."
+        },
+        "intervalType": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "minimum": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "maximum": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "showAxisLine": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showGridLines": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showLabels": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "showTicks": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "tickCount": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "tickLength": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "title": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "X-axis title. Prefer including the unit in the title whenever possible, for example `Time (minutes)`, `Date (day)`, or `Distance (km)`."
+        },
+        "labelFormat": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "format": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Alias of labelFormat."
+        },
+        "opposedPosition": {
+          "$ref": "#/$defs/DynamicBoolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ChartStaticType": {
+      "type": "string",
+      "enum": ["bar", "line", "area", "pie", "radar", "scatter", "funnel"],
+      "description": "Static chart type literal."
+    },
+    "ChartDynamicType": {
+      "description": "Dynamic chart type expression used when the chart kind is chosen from data or a function call.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChartType": {
+      "description": "Chart type. Prefer a static string when possible so the model can follow the matching subtype field rules.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ChartStaticType"
+        },
+        {
+          "$ref": "#/$defs/ChartDynamicType"
+        }
+      ]
+    },
+    "ChartSeriesProp": {
+      "description": "Series field name for simple charts, or an array of up to 4 per-series configuration objects. Within each series item, `xName` and `yName` must be provided together when either one is used. For `bar`, `yName` should point to the numeric value field and `xName` usually points to the category label field. For `line`, `area`, and `scatter`, prefer numeric x fields such as `year`, or datetime string fields such as `time` together with `x-axis.valueType = DateTime`. `line` and `area` also support category text in `xName`, which will be rendered in `data` order using the item index.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DynamicString"
+        },
+        {
+          "$ref": "#/$defs/ChartSeriesList"
+        }
+      ]
+    },
+    "ChartDirection": {
+      "description": "Bar chart layout direction.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["vertical", "horizontal"]
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChartValueLabelFormat": {
+      "description": "Bar value label format.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["grouped", "number"]
+        },
+        {
+          "$ref": "#/$defs/DataBinding"
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/FunctionCall"
+            },
+            {
+              "properties": {
+                "returnType": {
+                  "const": "string"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ChartCoreProps": {
+      "type": "object",
+      "description": "Shared chart props used by every chart type.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ChartType"
+        },
+        "data": {
+          "$ref": "#/$defs/DynamicArray",
+          "description": "Chart data array. For charts that use `series[].xName` and `series[].yName`, each item should contain both fields. Recommended patterns: `bar` with `xName = zone` and `yName = avgPrice`; numeric x-axis with `xName = year`, `yName = value`, and `data[].year = 2020`; or datetime x-axis with `xName = time`, `yName = value`, `x-axis.valueType = DateTime`, and `data[].time = 2026-04-09T09:30:00Z`. For `line` and `area`, category text in `xName` is also valid and will be rendered in `data` order while preserving the original labels."
+        },
+        "animate": {
+          "$ref": "#/$defs/DynamicBoolean"
+        }
+      },
+      "required": ["type", "data"],
+      "additionalProperties": true
+    },
+    "ChartSeriesBaseProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ChartCoreProps"
+        },
+        {
+          "type": "object",
+          "description": "Shared props for chart types driven by a reusable `series` field, such as bar, line, area, scatter, pie, and radar.",
+          "properties": {
+            "series": {
+              "$ref": "#/$defs/ChartSeriesProp"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "CartesianChartBaseProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ChartSeriesBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Shared props for cartesian charts such as bar, line, area, and scatter.",
+          "properties": {
+            "y-axis": {
+              "$ref": "#/$defs/ChartAxisConfig"
+            },
+            "x-axis": {
+              "$ref": "#/$defs/ChartXAxisConfig"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "CircularSeriesChartBaseProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ChartSeriesBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Shared props for pie and radar charts. These charts normally use a single numeric `series` field across all rows.",
+          "additionalProperties": true
+        }
+      ]
+    },
+    "BarChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CartesianChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for comparing values across categories. Prefer `direction = horizontal` when labels are long or when using value labels inside bars.",
+          "properties": {
+            "type": {
+              "const": "bar"
+            },
+            "direction": {
+              "$ref": "#/$defs/ChartDirection"
+            },
+            "show-value-labels": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw numeric labels inside bars. Currently effective only when `direction = horizontal`."
+            },
+            "value-label-format": {
+              "$ref": "#/$defs/ChartValueLabelFormat"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "LineChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CartesianChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for trends over ordered numeric or datetime x-values. Prefer `smooth` only when softened curves are desired.",
+          "properties": {
+            "type": {
+              "const": "line"
+            },
+            "show-average": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw the average dashed line. Currently effective for single-series `line` charts."
+            },
+            "smooth": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to render a smoothed line."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "AreaChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CartesianChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for trends where the filled area under the curve should emphasize magnitude over time or another ordered x-axis.",
+          "properties": {
+            "type": {
+              "const": "area"
+            },
+            "show-average": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw the average dashed line. Currently effective for single-series `area` charts."
+            },
+            "smooth": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to render a smoothed area boundary."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "PieChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CircularSeriesChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for part-to-whole composition with a small number of segments. Pie charts render at most 4 series or slices; merge any remaining content into an `other` bucket before passing the data. Prefer concise labels and avoid too many slices.",
+          "properties": {
+            "type": {
+              "const": "pie"
+            },
+            "show-percentage": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw percentage labels inside pie slices."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "RadarChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CircularSeriesChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use when each data item represents one dimension on a radial axis. Usually provide `label-key` so the outer labels are explicit.",
+          "properties": {
+            "type": {
+              "const": "radar"
+            },
+            "label-key": {
+              "$ref": "#/$defs/DynamicString",
+              "description": "Radar label field used around the outside of the chart."
+            },
+            "levels": {
+              "$ref": "#/$defs/DynamicNumber",
+              "description": "Number of background polygon grid levels."
+            },
+            "show-points": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw a marker dot at each radar vertex."
+            },
+            "max": {
+              "$ref": "#/$defs/DynamicNumber",
+              "description": "Optional explicit maximum used to normalize radar radius."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "ScatterChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/CartesianChartBaseProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for individual points on a numeric or datetime x-axis. Provide numeric coordinates instead of category labels.",
+          "properties": {
+            "type": {
+              "const": "scatter"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "FunnelChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ChartCoreProps"
+        },
+        {
+          "type": "object",
+          "description": "Use for ordered stage conversion flows such as signup or sales funnels. Prefer explicit stage names and values for each row.",
+          "properties": {
+            "type": {
+              "const": "funnel"
+            },
+            "label-key": {
+              "$ref": "#/$defs/DynamicString",
+              "description": "Funnel stage label field."
+            },
+            "value-key": {
+              "$ref": "#/$defs/DynamicString",
+              "description": "Funnel stage numeric value field."
+            },
+            "show-conversion": {
+              "$ref": "#/$defs/DynamicBoolean",
+              "description": "Whether to draw right-side conversion labels between adjacent stages."
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "DynamicChartProps": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/ChartCoreProps"
+        },
+        {
+          "type": "object",
+          "description": "Fallback chart props used when `type` is dynamic. This branch stays intentionally broad for compatibility, but prefer a static `type` so only the relevant subtype fields are considered.",
+          "properties": {
+            "type": {
+              "$ref": "#/$defs/ChartDynamicType"
+            },
+            "series": {
+              "$ref": "#/$defs/ChartSeriesProp"
+            },
+            "show-average": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "smooth": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "direction": {
+              "$ref": "#/$defs/ChartDirection"
+            },
+            "y-axis": {
+              "$ref": "#/$defs/ChartAxisConfig"
+            },
+            "x-axis": {
+              "$ref": "#/$defs/ChartXAxisConfig"
+            },
+            "show-percentage": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "label-key": {
+              "$ref": "#/$defs/DynamicString",
+              "description": "Radar label field, or funnel stage label field."
+            },
+            "value-key": {
+              "$ref": "#/$defs/DynamicString",
+              "description": "Funnel stage numeric value field."
+            },
+            "show-conversion": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "levels": {
+              "$ref": "#/$defs/DynamicNumber"
+            },
+            "show-points": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "max": {
+              "$ref": "#/$defs/DynamicNumber"
+            },
+            "show-value-labels": {
+              "$ref": "#/$defs/DynamicBoolean"
+            },
+            "value-label-format": {
+              "$ref": "#/$defs/ChartValueLabelFormat"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "ChartProps": {
+      "description": "Chart props organized by chart subtype to reduce invalid field combinations in LLM-generated output while preserving the same flat runtime prop shape.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/BarChartProps"
+        },
+        {
+          "$ref": "#/$defs/LineChartProps"
+        },
+        {
+          "$ref": "#/$defs/AreaChartProps"
+        },
+        {
+          "$ref": "#/$defs/PieChartProps"
+        },
+        {
+          "$ref": "#/$defs/RadarChartProps"
+        },
+        {
+          "$ref": "#/$defs/ScatterChartProps"
+        },
+        {
+          "$ref": "#/$defs/FunnelChartProps"
+        },
+        {
+          "$ref": "#/$defs/DynamicChartProps"
+        }
+      ]
+    },
+    "CardProps": {
+      "type": "object",
+      "properties": {
+        "cover": {
+          "$ref": "#/$defs/DynamicString",
+          "description": "Optional cover image URL rendered at the top of the card."
+        },
+        "title": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "footer": {
+          "$ref": "#/$defs/DynamicString"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ErrorStateProps": {
+      "type": "object",
+      "properties": {
+        "icon": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "text": {
+          "$ref": "#/$defs/DynamicString"
+        }
+      },
+      "additionalProperties": true
+    },
+    "ScrollViewProps": {
+      "type": "object",
+      "properties": {
+        "scroll-x": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "scroll-y": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "scroll-top": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "scroll-left": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "scroll-into-view": {
+          "$ref": "#/$defs/DynamicString"
+        },
+        "auto-scroll": {
+          "$ref": "#/$defs/DynamicBoolean"
+        },
+        "scroll-speed": {
+          "$ref": "#/$defs/DynamicNumber"
+        },
+        "scroll-direction": {
+          "description": "Automatic scroll direction.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["vertical", "horizontal"]
+            },
+            {
+              "$ref": "#/$defs/DataBinding"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/FunctionCall"
+                },
+                {
+                  "properties": {
+                    "returnType": {
+                      "const": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "anyComponent": {
+      "oneOf": [
+        {
+          "$ref": "#/components/view"
+        },
+        {
+          "$ref": "#/components/row"
+        },
+        {
+          "$ref": "#/components/column"
+        },
+        {
+          "$ref": "#/components/scroll-view"
+        },
+        {
+          "$ref": "#/components/text"
+        },
+        {
+          "$ref": "#/components/calendar"
+        },
+        {
+          "$ref": "#/components/chart"
+        },
+        {
+          "$ref": "#/components/card"
+        },
+        {
+          "$ref": "#/components/error-state"
+        }
+      ]
+    },
+    "InkComponentSchema": {
+      "$ref": "#/$defs/anyComponent"
+    }
+  }
+}

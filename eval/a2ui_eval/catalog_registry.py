@@ -95,16 +95,43 @@ class CatalogRegistry:
             provenance={"source": "builtin-spec-v0_9"},
         )
 
+        ink_catalog_rel = "specification/v0_9/catalogs/ink/catalog.json"
+        ink_profile = CatalogProfile(
+            profile_id="ink-a2ui-v0_9",
+            catalog_id="https://jsar-project.github.io/ink/a2ui/catalog.json",
+            spec_version="0.9",
+            catalog_schema_path=ink_catalog_rel,
+            renderer_support=["ink"],
+            provenance={"source": "ink-spec-v0_9"},
+        )
+
+        profiles_to_seed = [default_profile, ink_profile]
+
+        for profile in profiles_to_seed:
+            profile_path = self.profiles_dir / f"{profile.profile_id}.json"
+            if not profile_path.exists():
+                profile_path.write_text(json.dumps(asdict(profile), indent=2) + "\n", encoding="utf-8")
+
         if not registry_path.exists():
             registry_data = {
                 "default_profile_id": default_profile.profile_id,
-                "profiles": [default_profile.profile_id],
+                "profiles": [p.profile_id for p in profiles_to_seed],
             }
             registry_path.write_text(json.dumps(registry_data, indent=2) + "\n", encoding="utf-8")
-
-        profile_path = self.profiles_dir / f"{default_profile.profile_id}.json"
-        if not profile_path.exists():
-            profile_path.write_text(json.dumps(asdict(default_profile), indent=2) + "\n", encoding="utf-8")
+        else:
+            try:
+                registry_data = json.loads(registry_path.read_text(encoding="utf-8"))
+                profiles = registry_data.get("profiles", [])
+                updated = False
+                for p in profiles_to_seed:
+                    if p.profile_id not in profiles:
+                        profiles.append(p.profile_id)
+                        updated = True
+                if updated:
+                    registry_data["profiles"] = sorted(profiles)
+                    registry_path.write_text(json.dumps(registry_data, indent=2) + "\n", encoding="utf-8")
+            except Exception:
+                pass
 
     def load(self) -> None:
         """Load all profiles registered in registry.json."""

@@ -63,6 +63,7 @@ export interface StudioCaseIndexEntry {
   status: StudioRunStatus | null;
   renderer?: string;
   specVersion?: string;
+  annotationCount?: number;
 }
 
 export interface StudioManifest {
@@ -107,6 +108,7 @@ export interface StudioCaseReviewData {
   status: StudioCaseStatus;
   result?: StudioCaseResult;
   manifest: StudioManifest;
+  catalog?: Record<string, unknown> | null;
 }
 
 export interface StudioBootstrapData {
@@ -114,4 +116,26 @@ export interface StudioBootstrapData {
   runs: StudioRunIndexEntry[];
   groups: StudioGroupIndexEntry[];
   cases: StudioCaseIndexEntry[];
+}
+
+export type StudioAnnotationType = 'label' | 'note' | 'disposition' | 'score';
+
+export type StudioLabel =
+  | 'correct'
+  | 'incorrect'
+  | 'partial'
+  | 'hallucination'
+  | 'rendering_issue'
+  | 'prompt_issue'
+  | 'needs_review';
+
+export interface StudioAnnotation {
+  annotation_id: string;
+  created_at: string;
+  author: string;
+  type: StudioAnnotationType;
+  value: string;
+  confidence?: number;
+  source?: string;
+  metadata?: Record<string, unknown>;
 }

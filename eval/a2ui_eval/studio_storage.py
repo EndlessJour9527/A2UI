@@ -29,6 +29,8 @@ from .studio_types import (
     StudioRunDefinition,
     StudioRunPlan,
     StudioRunSummary,
+    StudioAnnotation,
+    StudioAnnotationType,
     to_jsonable,
 )
 
@@ -227,6 +229,16 @@ class StudioStorage:
                     status = None
                     if status_path.exists():
                         status = json.loads(status_path.read_text(encoding="utf-8")).get("status")
+                    
+                    annotations_path = case_path.parent / "annotations.json"
+                    annotation_count = 0
+                    if annotations_path.exists():
+                        try:
+                            ann_data = json.loads(annotations_path.read_text(encoding="utf-8"))
+                            annotation_count = len(ann_data.get("labels", [])) + len(ann_data.get("notes", []))
+                        except Exception:
+                            pass
+
                     cases_index.append(
                         {
                             "runId": run_id,
@@ -237,12 +249,50 @@ class StudioStorage:
                             "renderer": case_data.get("renderer"),
                             "specVersion": case_data.get("spec_version"),
                             "catalogProfileId": case_data.get("catalog_profile_id"),
+                            "annotationCount": annotation_count,
                         }
                     )
 
         self.write_json(self.indexes_dir / "runs.json", runs_index)
         self.write_json(self.indexes_dir / "groups.json", groups_index)
         self.write_json(self.indexes_dir / "cases.json", cases_index)
+
+    def case_annotations_path(self, run_id: str, group_id: str, case_id: str) -> Path:
+        return self.case_dir(run_id, group_id, case_id) / "annotations.json"
+
+    def read_annotations(self, run_id: str, group_id: str, case_id: str) -> dict[str, Any]:
+        """Read manual annotations for a specific case."""
+        path = self.case_annotations_path(run_id, group_id, case_id)
+        if not path.exists():
+            return {"labels": [], "notes": []}
+        try:
+            return self.read_json(path)
+        except Exception:
+            return {"labels": [], "notes": []}
+
+    def write_annotation(
+        self, run_id: str, group_id: str, case_id: str, annotation: StudioAnnotation
+    ) -> None:
+        """Persist or append a single manual annotation to a case."""
+        path = self.case_annotations_path(run_id, group_id, case_id)
+        current = self.read_annotations(run_id, group_id, case_id)
+        
+        anno_data = to_jsonable(annotation)
+        
+        if annotation.type == StudioAnnotationType.LABEL:
+            # Overwrite label by the same author to prevent duplicating multiple status selections
+            current["labels"] = [l for l in current.get("labels", []) if l.get("author") != annotation.author]
+            current["labels"].append(anno_data)
+        elif annotation.type == StudioAnnotationType.NOTE:
+            current["notes"] = current.get("notes", [])
+            current["notes"].append(anno_data)
+        else:
+            key = annotation.type.value
+            current[key] = current.get(key, [])
+            current[key].append(anno_data)
+            
+        self.write_json(path, current)
+        self.rebuild_indexes()
 
     def read_json(self, path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))

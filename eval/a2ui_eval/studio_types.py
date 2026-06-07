@@ -170,6 +170,41 @@ class StudioRunSummary:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+class StudioAnnotationType(str, Enum):
+    """Supported annotation types."""
+
+    LABEL = "label"
+    NOTE = "note"
+    DISPOSITION = "disposition"
+    SCORE = "score"
+
+
+class StudioLabel(str, Enum):
+    """Standard taxonomy labels for evaluation."""
+
+    CORRECT = "correct"
+    INCORRECT = "incorrect"
+    PARTIAL = "partial"
+    HALLUCINATION = "hallucination"
+    RENDERING_ISSUE = "rendering_issue"
+    PROMPT_ISSUE = "prompt_issue"
+    NEEDS_REVIEW = "needs_review"
+
+
+@dataclass(slots=True)
+class StudioAnnotation:
+    """Structure representing a single manual or automated case annotation."""
+
+    annotation_id: str
+    created_at: datetime
+    author: str
+    type: StudioAnnotationType
+    value: str
+    confidence: float = 1.0
+    source: str = "manual"
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 def to_jsonable(value: Any) -> Any:
     """Convert studio dataclasses/enums/datetimes into JSON-safe values."""
 

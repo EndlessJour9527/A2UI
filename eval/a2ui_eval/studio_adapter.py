@@ -27,6 +27,30 @@ from .catalog_registry import ResolvedCatalogConfig
 from .studio_types import StudioCaseResult, StudioCaseSelection, StudioRunStatus
 
 
+def categorize_validation_error(error_msg: str) -> str:
+    """Categorize validation error messages for diagnostics."""
+    msg_lower = error_msg.lower()
+    
+    # Topology errors
+    if any(k in msg_lower for k in ("circular", "orphan", "reachable", "topology")):
+        return "topology"
+        
+    # Integrity errors
+    if any(k in msg_lower for k in ("integrity", "unique", "duplicate", "must exist", "root component", "does not exist")):
+        return "integrity"
+        
+    # Schema Structure (message level / JSON level)
+    if any(k in msg_lower for k in ("is not an object", "unknown message type", "json", "syntax", "no a2ui json")):
+        return "schema_structure"
+        
+    # Schema Hallucination (made up elements/properties)
+    if any(k in msg_lower for k in ("additional properties", "unevaluated properties", "not allowed", "unknown key")):
+        return "schema_hallucination"
+        
+    # Schema Component (standard schema validation)
+    return "schema_component"
+
+
 class ProtocolEvalAdapter:
     """Thin wrapper around the official SDK-backed parsing and validation flow."""
 
@@ -60,43 +84,64 @@ class ProtocolEvalAdapter:
     ) -> StudioCaseResult:
         """Parse and validate one raw completion into a normalized case result."""
 
-        parts = parse_response(completion)
-        parsed_messages: list[Any] = []
-        for part in parts:
-            if part.a2ui_json:
-                if isinstance(part.a2ui_json, list):
-                    parsed_messages.extend(part.a2ui_json)
-                else:
-                    parsed_messages.append(part.a2ui_json)
-
         validation: dict[str, Any]
         status = StudioRunStatus.COMPLETED
         error: str | None = None
+        parsed_messages: list[Any] = []
 
-        if not parsed_messages:
-            status = StudioRunStatus.FAILED_PROTOCOL
-            error = "No A2UI JSON found in response"
-            validation = {
-                "pass": False,
-                "errors": [error],
-                "explanation": error,
-            }
-        else:
-            try:
+        try:
+            parts = parse_response(completion)
+            for part in parts:
+                if part.a2ui_json:
+                    if isinstance(part.a2ui_json, list):
+                        parsed_messages.extend(part.a2ui_json)
+                    else:
+                        parsed_messages.append(part.a2ui_json)
+
+            if not parsed_messages:
+                status = StudioRunStatus.FAILED_PROTOCOL
+                error = "No A2UI JSON found in response"
+                validation = {
+                    "pass": False,
+                    "errors": [error],
+                    "explanation": error,
+                    "issues": [{"message": error, "category": "schema_structure"}],
+                }
+            else:
                 self.validator.validate(parsed_messages)
                 validation = {
                     "pass": True,
                     "errors": [],
                     "explanation": "Valid A2UI payload",
+                    "issues": [],
                 }
-            except Exception as exc:  # pylint: disable=broad-exception-caught
-                status = StudioRunStatus.FAILED_PROTOCOL
-                error = str(exc)
-                validation = {
-                    "pass": False,
-                    "errors": [str(exc)],
-                    "explanation": str(exc),
-                }
+        except Exception as exc:  # pylint: disable=broad-exception-caught
+            status = StudioRunStatus.FAILED_PROTOCOL
+            error = str(exc)
+            
+            raw_errors = []
+            if "Validation failed:" in error:
+                for line in error.split("\n"):
+                    stripped = line.strip()
+                    if stripped.startswith("- "):
+                        raw_errors.append(stripped[2:])
+            
+            if not raw_errors:
+                raw_errors = [error]
+                
+            issues = []
+            for err in raw_errors:
+                issues.append({
+                    "message": err,
+                    "category": categorize_validation_error(err)
+                })
+                
+            validation = {
+                "pass": False,
+                "errors": raw_errors,
+                "explanation": error,
+                "issues": issues,
+            }
 
         normalized_messages = parsed_messages
         semantic_payload = semantic_evaluation or {
