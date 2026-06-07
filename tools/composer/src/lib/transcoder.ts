@@ -34,16 +34,19 @@ export function transpileToV0_8(msg: any): any {
   if (msg.updateComponents) {
     // Convert v0.9 type/props format to v0.8 component format
     const components = (msg.updateComponents.components || []).map((comp: any) => {
-      if (comp.component) {
+      if (comp.component && typeof comp.component === 'object') {
         // Already v0.8 format
         return comp;
       }
-      if (comp.type) {
-        // v0.9 format: convert type/props to v0.8 component map
-        const props = comp.props || {};
+      const type = comp.type || (typeof comp.component === 'string' ? comp.component : null);
+      if (type) {
+        // v0.9 format: convert type/props or flat fields to v0.8 component map
+        const props = comp.props || comp;
         const v08Props: Record<string, any> = {};
 
         for (const [key, value] of Object.entries(props)) {
+          if (key === 'id' || key === 'component' || key === 'type' || key === 'props') continue;
+
           if (key === 'children' && Array.isArray(value)) {
             // v0.9 children: ["id1", "id2"] -> v0.8 children: { explicitList: ["id1", "id2"] }
             v08Props.children = {explicitList: value};
@@ -67,7 +70,7 @@ export function transpileToV0_8(msg: any): any {
 
         return {
           id: comp.id,
-          component: {[comp.type]: v08Props},
+          component: {[type]: v08Props},
         };
       }
       return comp;

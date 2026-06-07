@@ -31,7 +31,7 @@ async def test_scorer_valid_json():
       "version": "v0.9",
       "createSurface": {
         "surfaceId": "main",
-        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
       }
     }
     </a2ui-json>
@@ -74,7 +74,7 @@ async def test_scorer_missing_root():
         "version": "v0.9",
         "createSurface": {
           "surfaceId": "main",
-          "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+          "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
         }
       },
       {
@@ -141,7 +141,7 @@ async def test_scorer_broken_relationship():
         "version": "v0.9",
         "createSurface": {
           "surfaceId": "main",
-          "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+          "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
         }
       },
       {

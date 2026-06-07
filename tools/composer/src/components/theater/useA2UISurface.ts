@@ -16,7 +16,7 @@
 
 import {useMemo} from 'react';
 import {transpileToV0_8} from '@/lib/transcoder';
-import type {A2UIComponent} from '@/types/widget';
+import type {A2UIComponent, SpecVersion} from '@/types/widget';
 
 export interface A2UISurfaceState {
   root: string;
@@ -28,7 +28,7 @@ export interface A2UISurfaceState {
  * Transform a stream of A2UI messages (v0.8 or v0.9) into
  * the props format that A2UIViewer expects.
  */
-export function useA2UISurface(messages: any[]): A2UISurfaceState {
+export function useA2UISurface(messages: any[], specVersion?: SpecVersion): A2UISurfaceState {
   return useMemo(() => {
     let root = 'root';
     const componentsMap = new Map<string, A2UIComponent>();
@@ -37,44 +37,67 @@ export function useA2UISurface(messages: any[]): A2UISurfaceState {
     for (const msg of messages) {
       if (!msg) continue;
 
-      // Transpile v0.9 -> v0.8 (v0.8 passes through unchanged)
-      const v0_8msg = transpileToV0_8(msg);
+      if (specVersion === '0.9') {
+        // Handle v0.9 messages natively
+        if (msg.createSurface) {
+          root = msg.createSurface.root || 'root';
+        }
 
-      // Handle beginRendering (v0.8)
-      if (v0_8msg.beginRendering) {
-        root = v0_8msg.beginRendering.root || 'root';
-      }
-
-      // Handle surfaceUpdate (v0.8) — components already in { id, component: { Type: props } } format
-      if (v0_8msg.surfaceUpdate) {
-        const newComponents = v0_8msg.surfaceUpdate.components || [];
-        for (const comp of newComponents) {
-          if (comp.id && comp.component) {
-            componentsMap.set(comp.id, {
-              id: comp.id,
-              component: comp.component,
-            });
+        if (msg.updateComponents) {
+          const newComponents = msg.updateComponents.components || [];
+          for (const comp of newComponents) {
+            if (comp.id && comp.component) {
+              componentsMap.set(comp.id, comp);
+            }
           }
         }
-      }
 
-      // Handle dataModelUpdate (v0.8)
-      if (v0_8msg.dataModelUpdate) {
-        const contents = v0_8msg.dataModelUpdate.contents;
-        if (contents) {
-          // contents can be an array of ValueMap objects or a plain object
-          if (Array.isArray(contents)) {
-            for (const item of contents) {
-              if (item.key !== undefined) {
-                // ValueMap format: { key, valueString?, valueNumber?, valueBoolean?, valueMap? }
-                data[item.key] = extractValueMapValue(item);
-              } else {
-                // Plain object
-                data = {...data, ...item};
-              }
+        if (msg.updateDataModel) {
+          const val = msg.updateDataModel.value;
+          if (val && typeof val === 'object') {
+            data = {...data, ...val};
+          }
+        }
+      } else {
+        // Transpile v0.9 -> v0.8 (v0.8 passes through unchanged)
+        const v0_8msg = transpileToV0_8(msg);
+
+        // Handle beginRendering (v0.8)
+        if (v0_8msg.beginRendering) {
+          root = v0_8msg.beginRendering.root || 'root';
+        }
+
+        // Handle surfaceUpdate (v0.8) — components already in { id, component: { Type: props } } format
+        if (v0_8msg.surfaceUpdate) {
+          const newComponents = v0_8msg.surfaceUpdate.components || [];
+          for (const comp of newComponents) {
+            if (comp.id && comp.component) {
+              componentsMap.set(comp.id, {
+                id: comp.id,
+                component: comp.component,
+              });
             }
-          } else if (typeof contents === 'object') {
-            data = {...data, ...contents};
+          }
+        }
+
+        // Handle dataModelUpdate (v0.8)
+        if (v0_8msg.dataModelUpdate) {
+          const contents = v0_8msg.dataModelUpdate.contents;
+          if (contents) {
+            // contents can be an array of ValueMap objects or a plain object
+            if (Array.isArray(contents)) {
+              for (const item of contents) {
+                if (item.key !== undefined) {
+                  // ValueMap format: { key, valueString?, valueNumber?, valueBoolean?, valueMap? }
+                  data[item.key] = extractValueMapValue(item);
+                } else {
+                  // Plain object
+                  data = {...data, ...item};
+                }
+              }
+            } else if (typeof contents === 'object') {
+              data = {...data, ...contents};
+            }
           }
         }
       }
@@ -85,7 +108,7 @@ export function useA2UISurface(messages: any[]): A2UISurfaceState {
       components: Array.from(componentsMap.values()),
       data,
     };
-  }, [messages]);
+  }, [messages, specVersion]);
 }
 
 /**

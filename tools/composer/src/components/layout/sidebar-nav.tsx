@@ -18,7 +18,16 @@
 
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {SquarePlus, LayoutGrid, Box, Shapes, LucideIcon, BookOpen, Play} from 'lucide-react';
+import {
+  SquarePlus,
+  LayoutGrid,
+  Box,
+  Shapes,
+  LucideIcon,
+  BookOpen,
+  Play,
+  FlaskConical,
+} from 'lucide-react';
 import {cn} from '@/lib/utils';
 
 interface NavItemProps {
@@ -64,6 +73,7 @@ export function SidebarNav({onNavigate}: SidebarNavProps) {
   const navItems = [
     {icon: SquarePlus, label: 'Create', href: '/'},
     {icon: Play, label: 'Theater', subtitle: 'A2UI Playground', href: '/theater'},
+    {icon: FlaskConical, label: 'Studio', href: '/studio', subtitle: 'Evaluation Studio'},
     {icon: LayoutGrid, label: 'Gallery', href: '/gallery'},
     {icon: Box, label: 'Components', href: '/components'},
     {icon: Shapes, label: 'Icons', href: '/icons'},
@@ -86,7 +96,7 @@ export function SidebarNav({onNavigate}: SidebarNavProps) {
           subtitle={item.subtitle}
           href={item.href}
           external={item.external}
-          selected={pathname === item.href}
+          selected={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)}
           onClick={onNavigate}
         />
       ))}
