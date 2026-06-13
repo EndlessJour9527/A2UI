@@ -3,7 +3,7 @@
 This guide shows you how to serve **rich, interactive A2UI interfaces** from an **MCP server** using Tools and Embedded Resources. By the end, you'll have a working MCP server that returns A2UI components to any MCP-compatible client.
 
 <video width="100%" height="auto" controls playsinline style="display: block; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; margin-bottom: 24px;">
-  <source src="https://raw.githubusercontent.com/google/A2UI/main/docs/assets/guides-a2ui-over-mcp-tour.mp4" type="video/mp4">
+  <source src="https://raw.githubusercontent.com/a2ui-project/a2ui/main/docs/assets/guides-a2ui-over-mcp-tour.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
@@ -21,8 +21,8 @@ Before diving into the protocol details, let's get a working example running. Th
 
 ```bash
 # Clone the repo (if you haven't already)
-git clone https://github.com/google/A2UI.git
-cd A2UI/samples/mcp/a2ui-over-mcp-recipe
+git clone https://github.com/a2ui-project/a2ui.git
+cd a2ui/samples/mcp/a2ui-over-mcp-recipe
 
 # Start the MCP server (SSE transport on port 8000)
 uv run .
@@ -57,17 +57,20 @@ In the Inspector:
 
 For a fully rendered interactive experience that visually demonstrates A2UI over MCP, run the included web application:
 
+> [!NOTE]
+> **Package Manager Usage:** Running the built-in sample applications within the A2UI repository requires Yarn (`yarn install` / `yarn dev`) as configured by Corepack workspaces. For your own regular usage and standalone projects outside this repository, use the package manager of your choice (e.g. npm, pnpm).
+
 1. In a new terminal window, navigate to the client directory:
     ```bash
     cd client
     ```
 2. Install Node.js dependencies:
     ```bash
-    npm install
+    yarn install
     ```
 3. Start the Vite development server:
     ```bash
-    npm run dev
+    yarn dev
     ```
 4. Open your browser to the URL displayed in your terminal (usually `http://localhost:5173`).
 
@@ -75,7 +78,7 @@ You will see a premium, responsive dual-column interface where the left column r
 
 ![Dynamic Recipe Studio demo showing selection form on the left and dynamic recipe card generation on the right](../assets/recipe_sample.gif)
 
-See all samples at [`samples/mcp/`](https://github.com/google/A2UI/tree/main/samples/mcp).
+See all samples at [`samples/mcp/`](https://github.com/a2ui-project/a2ui/tree/main/samples/mcp).
 
 ## How It Works
 

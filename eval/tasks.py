@@ -22,9 +22,9 @@ from google.genai import errors
 from inspect_ai import task, Task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.scorer import scorer, Score
-from genui_eval.dataset import load_a2ui_dataset
-from genui_eval.solvers import a2ui_system_prompt, measured_generate, inject_context
-from genui_eval.scorers import a2ui_scorer, measured_model_graded_qa
+from a2ui_eval.dataset import load_a2ui_dataset
+from a2ui_eval.solvers import a2ui_system_prompt, measured_generate, inject_context
+from a2ui_eval.scorers import a2ui_scorer, measured_model_graded_qa
 
 # Paths relative to the eval directory where we run inspect
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -88,7 +88,6 @@ def a2ui_v0_9_eval(list_models: bool = False, grading_model: str = "google/gemin
         dataset=dataset,
         solver=[
             a2ui_system_prompt(SCHEMA_PATH, CATALOG_PATH),
-            inject_context(),
             measured_generate()
         ],
         scorer=[
