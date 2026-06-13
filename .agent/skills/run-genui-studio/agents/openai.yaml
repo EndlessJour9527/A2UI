@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run GenUI Studio"
+  short_description: "Run GenUI Eval Studio with subagents"
+  default_prompt: "Use $run-genui-studio to start GenUI Eval Studio, run a sample evaluation, and report the local URLs and verification results."

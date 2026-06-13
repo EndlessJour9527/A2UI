@@ -130,6 +130,68 @@ class StudioStorage:
         with events_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(to_jsonable(event), ensure_ascii=False) + "\n")
 
+    def prepare_for_execution(self, run_definition: StudioRunDefinition, provider: str) -> None:
+        """Reset per-execution artifacts so reruns only surface the latest attempt."""
+
+        run_dir = self.run_dir(run_definition.run_id)
+        execution_log_path = run_dir / "execution.log"
+        if execution_log_path.exists():
+            execution_log_path.unlink()
+
+        pid_path = run_dir / "pid.txt"
+        if pid_path.exists():
+            pid_path.unlink()
+
+        for group in run_definition.groups:
+            for case in group.cases:
+                case_dir = self.case_dir(run_definition.run_id, group.group_id, case.case_id)
+                self.write_json(
+                    case_dir / "status.json",
+                    {
+                        "runId": run_definition.run_id,
+                        "groupId": group.group_id,
+                        "caseId": case.case_id,
+                        "status": "queued",
+                        "updatedAt": datetime.now(timezone.utc),
+                        "error": None,
+                        "metadata": {},
+                    },
+                )
+                for artifact_path in (
+                    case_dir / "result.json",
+                    case_dir / "raw" / "raw_completion.md",
+                    case_dir / "protocol" / "parsed.json",
+                    case_dir / "protocol" / "normalized.json",
+                    case_dir / "protocol" / "validation.json",
+                    case_dir / "protocol" / "semantic_eval.json",
+                    case_dir / "render" / "replay.json",
+                    case_dir / "artifacts" / "manifest.json",
+                    case_dir / "artifacts" / "timeline.json",
+                ):
+                    if artifact_path.exists():
+                        artifact_path.unlink()
+
+        run_definition.metadata = {
+            **run_definition.metadata,
+            "completion_provider": provider,
+            "latest_execution_started_at": datetime.now(timezone.utc),
+        }
+        self.write_json(run_dir / "run.json", run_definition)
+        self.write_json(run_dir / "summary.json", self.build_summary(run_definition))
+        self.append_event(
+            StudioEvent(
+                event_type="run.created",
+                run_id=run_definition.run_id,
+                payload={
+                    "name": run_definition.name,
+                    "executionMode": run_definition.execution_mode,
+                    "groupIds": [group.group_id for group in run_definition.groups],
+                    "completionProvider": provider,
+                },
+            )
+        )
+        self.rebuild_indexes()
+
     def write_case_result(self, result: StudioCaseResult) -> None:
         """Persist normalized result artifacts and materialized status."""
 

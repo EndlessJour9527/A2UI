@@ -163,7 +163,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           setExecutionError(null);
         }
 
-        const recentEvents = eventsForLatestExecution(data.recentEvents);
+        const latestExecutionStartIndex = typeof data.latestExecutionStartIndex === 'number'
+          ? data.latestExecutionStartIndex
+          : undefined;
+        const recentEvents = eventsForLatestExecution(data.recentEvents, latestExecutionStartIndex);
         
         // Count unique case completions to prevent duplicate counts from concurrent/rerun processes
         const caseStatuses: Record<string, string> = {};
@@ -668,7 +671,11 @@ function buildProviderValue(mode: CompletionProviderMode, model: string) {
   return `${mode}:${trimmedModel}`;
 }
 
-function eventsForLatestExecution(events: any[]) {
+function eventsForLatestExecution(events: any[], latestExecutionStartIndex?: number) {
+  if (typeof latestExecutionStartIndex === 'number') {
+    return events.slice(latestExecutionStartIndex + 1);
+  }
+
   const lastCreatedIndex = events
     .map((event, index) => ({event, index}))
     .filter(item => item.event.event_type === 'run.created')

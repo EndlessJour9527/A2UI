@@ -67,6 +67,7 @@ export async function GET(
     // Read events.jsonl
     const eventsPath = path.join(runDir, 'events.jsonl');
     const recentEvents: any[] = [];
+    let latestExecutionStartIndex = 0;
     try {
       const eventsRaw = await fs.readFile(eventsPath, 'utf8');
       const lines = eventsRaw.split('\n');
@@ -79,6 +80,13 @@ export async function GET(
             // Ignore corrupted lines
           }
         }
+      }
+      const lastCreatedIndex = recentEvents
+        .map((event, index) => ({event, index}))
+        .filter(item => item.event.event_type === 'run.created')
+        .at(-1)?.index;
+      if (lastCreatedIndex !== undefined) {
+        latestExecutionStartIndex = lastCreatedIndex;
       }
     } catch (err) {
       // It is fine if events.jsonl does not exist yet or is empty
@@ -150,6 +158,7 @@ export async function GET(
     return NextResponse.json({
       summary,
       recentEvents,
+      latestExecutionStartIndex,
       isRunning,
       executionLog,
     });

@@ -353,7 +353,7 @@ def main() -> None:
             **run_def.metadata,
             "completion_provider": args.provider,
         }
-        
+        orchestrator.storage.prepare_for_execution(run_def, args.provider)
         if args.validate_only:
             logger.info("Running validation checks only")
             try:
