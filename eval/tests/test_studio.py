@@ -30,6 +30,7 @@ from genui_eval.studio_types import (
     StudioExecutionMode,
     StudioAnnotation,
     StudioAnnotationType,
+    StudioRunStatus,
 )
 
 CATALOG_PATH = (
@@ -168,6 +169,65 @@ def test_orchestrator_run_persists_indexes_and_result(tmp_path: Path):
     assert summary["failed_cases"] == 0
     assert manifest["artifacts"]["raw.raw_completion"] == "raw/raw_completion.md"
     assert manifest["artifacts"]["protocol.parsed"] == "protocol/parsed.json"
+
+
+def test_orchestrator_run_tracks_failed_protocol_in_summary(tmp_path: Path):
+    run_definition = build_run_definition(tmp_path)
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = build_orchestrator(storage)
+
+    orchestrator.run(run_definition, completion_provider=lambda _: "hello world")
+
+    summary_path = run_definition.storage_root / "runs" / run_definition.run_id / "summary.json"
+    case_status_path = storage.case_dir(run_definition.run_id, "group-a", "case-1") / "status.json"
+
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    case_status = json.loads(case_status_path.read_text(encoding="utf-8"))
+
+    assert case_status["status"] == "failed_protocol"
+    assert summary["completed_cases"] == 0
+    assert summary["failed_cases"] == 1
+    assert summary["status"] == "failed_protocol"
+
+
+def test_studio_storage_refresh_run_summary_from_cases_counts_failures(tmp_path: Path):
+    run_definition = create_run_definition(
+        run_id="run-summary-refresh",
+        name="Summary Refresh",
+        groups=[
+            StudioGroupSelection(
+                group_id="group-a",
+                label="Group A",
+                cases=[
+                    StudioCaseSelection(case_id="case-1", group_id="group-a", prompt="P1"),
+                    StudioCaseSelection(case_id="case-2", group_id="group-a", prompt="P2"),
+                    StudioCaseSelection(case_id="case-3", group_id="group-a", prompt="P3"),
+                ],
+            )
+        ],
+        model="test-model",
+        grading_model="judge-model",
+    )
+    run_definition.storage_root = tmp_path / ".genui-eval-studio"
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = build_orchestrator(storage)
+    orchestrator.initialize_run(run_definition)
+
+    storage.update_case_status(run_definition.run_id, "group-a", "case-1", "completed")
+    storage.update_case_status(run_definition.run_id, "group-a", "case-2", "failed_protocol")
+    storage.update_case_status(run_definition.run_id, "group-a", "case-3", "running_protocol")
+
+    summary = storage.build_summary(run_definition)
+    summary.status = StudioRunStatus.RUNNING_PROTOCOL
+    storage.refresh_run_summary_from_cases(summary)
+
+    summary_data = json.loads(
+        (run_definition.storage_root / "runs" / run_definition.run_id / "summary.json").read_text(encoding="utf-8")
+    )
+
+    assert summary_data["completed_cases"] == 1
+    assert summary_data["failed_cases"] == 1
+    assert summary_data["status"] == "running_protocol"
 
 
 def test_catalog_registry_resolution(tmp_path: Path):

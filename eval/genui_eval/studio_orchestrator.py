@@ -143,8 +143,6 @@ class StudioOrchestrator:
                 case.spec_version = config.protocol_version
 
         plan = self.initialize_run(run_definition)
-        completed = 0
-        failed = 0
         summary = self.storage.build_summary(run_definition)
         summary.status = StudioRunStatus.RUNNING_PROTOCOL
         self.storage.update_run_summary(summary)
@@ -193,27 +191,22 @@ class StudioOrchestrator:
                         },
                     )
                 )
-                completed += 1
-                if result.status != StudioRunStatus.COMPLETED:
-                    failed += 1
-                summary.completed_cases = completed
-                summary.failed_cases = failed
                 summary.status = StudioRunStatus.RUNNING_PROTOCOL
-                self.storage.update_run_summary(summary)
+                self.storage.refresh_run_summary_from_cases(summary)
 
-        summary.completed_cases = completed
-        summary.failed_cases = failed
         summary.status = (
-            StudioRunStatus.COMPLETED if failed == 0 else StudioRunStatus.FAILED_PROTOCOL
+            StudioRunStatus.COMPLETED
+            if summary.failed_cases == 0
+            else StudioRunStatus.FAILED_PROTOCOL
         )
-        self.storage.update_run_summary(summary)
+        self.storage.refresh_run_summary_from_cases(summary)
         self.storage.append_event(
             StudioEvent(
                 event_type="run.completed",
                 run_id=run_definition.run_id,
                 payload={
-                    "completedCases": completed,
-                    "failedCases": failed,
+                    "completedCases": summary.completed_cases,
+                    "failedCases": summary.failed_cases,
                     "status": summary.status.value,
                 },
             )

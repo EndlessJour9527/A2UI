@@ -31,6 +31,7 @@ from .studio_types import (
     StudioRunSummary,
     StudioAnnotation,
     StudioAnnotationType,
+    StudioRunStatus,
     to_jsonable,
 )
 
@@ -320,6 +321,52 @@ class StudioStorage:
 
         self.write_json(self.run_dir(summary.run_id) / "summary.json", summary)
         self.rebuild_indexes()
+
+    def summarize_case_statuses(self, run_id: str) -> tuple[int, int, dict[str, int]]:
+        """Recompute run case counts from persisted case statuses."""
+
+        status_counts: dict[str, int] = {}
+        completed_cases = 0
+        failed_cases = 0
+
+        for status_path in sorted(self.run_dir(run_id).glob("groups/*/cases/*/status.json")):
+            status_data = self.read_json(status_path)
+            status = status_data.get("status")
+            if not status:
+                continue
+
+            status_counts[status] = status_counts.get(status, 0) + 1
+            if status == StudioRunStatus.COMPLETED.value:
+                completed_cases += 1
+            elif status not in {
+                StudioRunStatus.QUEUED.value,
+                StudioRunStatus.PREPARING.value,
+                StudioRunStatus.RUNNING_PROTOCOL.value,
+                StudioRunStatus.RUNNING_RENDER.value,
+                StudioRunStatus.COLLECTING_DEVICE.value,
+            }:
+                failed_cases += 1
+
+        return completed_cases, failed_cases, status_counts
+
+    def refresh_run_summary_from_cases(
+        self,
+        summary: StudioRunSummary,
+        *,
+        status: StudioRunStatus | None = None,
+        latest_error: str | None = None,
+    ) -> StudioRunSummary:
+        """Persist summary counts recomputed from materialized case statuses."""
+
+        completed_cases, failed_cases, _ = self.summarize_case_statuses(summary.run_id)
+        summary.completed_cases = completed_cases
+        summary.failed_cases = failed_cases
+        if status is not None:
+            summary.status = status
+        if latest_error is not None:
+            summary.latest_error = latest_error
+        self.update_run_summary(summary)
+        return summary
 
     def update_case_status(
         self,
