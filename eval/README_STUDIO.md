@@ -1,6 +1,6 @@
-# A2UI Eval Studio Running Guide
+# GenUI Eval Studio Running Guide
 
-This guide describes how to run evaluations, seed local run data, and launch the **A2UI Eval Studio** control plane and review workspace.
+This guide describes how to run evaluations, seed local run data, and launch the **GenUI Eval Studio** control plane and review workspace.
 
 ---
 
@@ -8,7 +8,7 @@ This guide describes how to run evaluations, seed local run data, and launch the
 
 - **Backend / Storage Layer**: Located in `eval/`. Built using Python + Inspect AI.
 - **Frontend / Review Workspace**: Located in `tools/composer/`. Built using Next.js.
-- **Shared Storage**: Created dynamically in the repository root as `.a2ui-eval-studio/` to share runs, indices, and catalog configs between backend and frontend.
+- **Shared Storage**: Created dynamically in the repository root as `.genui-eval-studio/` to share runs, indices, and catalog configs between backend and frontend.
 
 ---
 
@@ -35,11 +35,11 @@ uv run python bin/create_studio_run.py --name "A2UI Studio MVP Seed Run"
 This will output a JSON payload indicating success and showing the workspace paths:
 ```json
 {
-  "studioRoot": "/Users/next/develop/ai-proj/A2UI/.a2ui-eval-studio",
+  "studioRoot": "/Users/next/develop/ai-proj/A2UI/.genui-eval-studio",
   "runId": "run-d9c479b3f8ec",
-  "runPath": "/Users/next/develop/ai-proj/A2UI/.a2ui-eval-studio/runs/run-d9c479b3f8ec",
-  "summaryPath": "/Users/next/develop/ai-proj/A2UI/.a2ui-eval-studio/runs/run-d9c479b3f8ec/summary.json",
-  "indexesPath": "/Users/next/develop/ai-proj/A2UI/.a2ui-eval-studio/indexes/runs.json"
+  "runPath": "/Users/next/develop/ai-proj/A2UI/.genui-eval-studio/runs/run-d9c479b3f8ec",
+  "summaryPath": "/Users/next/develop/ai-proj/A2UI/.genui-eval-studio/runs/run-d9c479b3f8ec/summary.json",
+  "indexesPath": "/Users/next/develop/ai-proj/A2UI/.genui-eval-studio/indexes/runs.json"
 }
 ```
 
@@ -49,11 +49,22 @@ To verify everything is working fine, run backend studio unit tests:
 PYTHONPATH=. uv run pytest tests/test_studio.py
 ```
 
+### Step 4: Execute a Run Through the Local Proxy (Optional)
+For a local OpenAI-compatible proxy, keep credentials in environment variables rather than committed files:
+```bash
+export GENUI_EVAL_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8045/v1"
+export GENUI_EVAL_LOCAL_OPENAI_API_KEY="<local-proxy-api-key>"
+export GENUI_EVAL_LOCAL_OPENAI_MODEL="gemini-3.5-flash-extra-low"
+uv run python -m genui_eval.run_executor <run-id> --provider local-openai:gemini-3.5-flash-extra-low
+```
+
+The Studio WebUI exposes the same provider as **Local Proxy: Gemini 3.5 Flash Extra Low**.
+
 ---
 
 ## 3. Frontend Setup & Startup
 
-The frontend loads the indexes and runs directly from `.a2ui-eval-studio/` and exposes a WebUI.
+The frontend loads the indexes and runs directly from `.genui-eval-studio/` and exposes a WebUI.
 
 ### Step 1: Install Node.js dependencies
 Navigate to the `tools/composer/` directory and install packages:

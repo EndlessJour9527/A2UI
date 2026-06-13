@@ -23,10 +23,10 @@ from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-from .catalog_registry import CatalogRegistry, ResolvedCatalogConfig
-from .studio_adapter import ProtocolEvalAdapter
+from .protocols.registry import ProtocolRegistry
 from .studio_storage import StudioStorage, build_default_studio_root
 from .studio_types import (
+    PlanningError,
     StudioCaseSelection,
     StudioEvent,
     StudioExecutionMode,
@@ -44,30 +44,20 @@ class StudioOrchestrator:
     def __init__(
         self,
         storage: StudioStorage,
-        protocol_adapter: ProtocolEvalAdapter,
-        registry: CatalogRegistry | None = None,
+        protocol_registry: ProtocolRegistry,
     ):
         self.storage = storage
-        self.protocol_adapter = protocol_adapter
-        self.registry = registry
-        self._adapter_cache: dict[str, ProtocolEvalAdapter] = {}
+        self.protocol_registry = protocol_registry
 
     @classmethod
-    def for_repo(cls, eval_root: Path, catalog_path: Path | None = None) -> "StudioOrchestrator":
+    def for_repo(cls, eval_root: Path) -> "StudioOrchestrator":
         repo_root = eval_root.parent if eval_root.name == "eval" else eval_root
         studio_root = build_default_studio_root(eval_root)
         storage = StudioStorage(studio_root)
 
-        registry = CatalogRegistry(studio_root, repo_root)
-        registry.load()
-
-        if catalog_path is not None:
-            adapter = ProtocolEvalAdapter(catalog_path=catalog_path)
-        else:
-            default_config = registry.resolve_profile(registry.default_profile_id)
-            adapter = ProtocolEvalAdapter(resolved_config=default_config)
-
-        return cls(storage=storage, protocol_adapter=adapter, registry=registry)
+        protocol_registry = ProtocolRegistry(studio_root, repo_root)
+        protocol_registry.load()
+        return cls(storage=storage, protocol_registry=protocol_registry)
 
     def build_plan(self, run_definition: StudioRunDefinition) -> StudioRunPlan:
         """Expand a run definition into ordered case attempts."""
@@ -83,8 +73,18 @@ class StudioOrchestrator:
                             "attempt": repeat_index + 1,
                             "executionMode": run_definition.execution_mode.value,
                             "renderer": case.renderer,
+                            "protocolId": case.protocol_id or run_definition.protocol_id,
+                            "protocolVersion": case.protocol_version or run_definition.protocol_version,
+                            "protocolProfileId": (
+                                case.protocol_profile_id
+                                or run_definition.protocol_profile_id
+                                or case.catalog_profile_id
+                                or run_definition.catalog_profile_id
+                            ),
                             "specVersion": case.spec_version,
-                            "catalogProfileId": case.catalog_profile_id or run_definition.catalog_profile_id,
+                            "catalogProfileId": (
+                                case.catalog_profile_id or run_definition.catalog_profile_id
+                            ),
                         }
                     )
         return StudioRunPlan(run=run_definition, case_attempts=attempts)
@@ -107,6 +107,21 @@ class StudioOrchestrator:
         )
         return plan
 
+    def validate_compatibility(self, run_definition: StudioRunDefinition) -> None:
+        """Validate run compatibility criteria before starting execution.
+
+        Raises:
+            PlanningError: If any of the compatibility criteria are violated.
+        """
+        errors = []
+
+        for group in run_definition.groups:
+            for case in group.cases:
+                errors.extend(self.protocol_registry.validate_case(run_definition, case))
+
+        if errors:
+            raise PlanningError(f"Run compatibility validation failed with {len(errors)} error(s)", errors)
+
     def run(
         self,
         run_definition: StudioRunDefinition,
@@ -114,29 +129,25 @@ class StudioOrchestrator:
     ) -> StudioRunPlan:
         """Execute a simple synchronous MVP run using a provided completion source."""
 
-        # Populate catalog profile for cases if not set
+        # Run pre-execution compatibility checks
+        self.validate_compatibility(run_definition)
+
+        # Populate protocol profile for cases if not set
         for group in run_definition.groups:
             for case in group.cases:
-                if not case.catalog_profile_id:
-                    case.catalog_profile_id = run_definition.catalog_profile_id or (
-                        self.registry.default_profile_id if self.registry else "a2ui-basic-v0_9"
-                    )
-                # Resolve catalog_id from profile if registry is present
-                if self.registry and case.catalog_profile_id:
-                    try:
-                        profile = self.registry.get_profile(case.catalog_profile_id)
-                        if profile:
-                            case.catalog_id = profile.catalog_id
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to resolve catalog_id for profile %s: %s",
-                            case.catalog_profile_id,
-                            e,
-                        )
+                config = self.protocol_registry.resolve_for_case(run_definition, case)
+                case.protocol_id = config.protocol_id
+                case.protocol_version = config.protocol_version
+                case.protocol_profile_id = config.protocol_profile_id
+                case.protocol_options = dict(config.protocol_options)
+                case.spec_version = config.protocol_version
 
         plan = self.initialize_run(run_definition)
         completed = 0
         failed = 0
+        summary = self.storage.build_summary(run_definition)
+        summary.status = StudioRunStatus.RUNNING_PROTOCOL
+        self.storage.update_run_summary(summary)
 
         for group in run_definition.groups:
             self.storage.append_event(
@@ -148,6 +159,12 @@ class StudioOrchestrator:
             )
 
             for case in group.cases:
+                self.storage.update_case_status(
+                    run_definition.run_id,
+                    group.group_id,
+                    case.case_id,
+                    StudioRunStatus.RUNNING_PROTOCOL.value,
+                )
                 self.storage.append_event(
                     StudioEvent(
                         event_type="case.started",
@@ -156,27 +173,13 @@ class StudioOrchestrator:
                     )
                 )
 
-                # Resolve specific adapter for the case
-                case_adapter = self.protocol_adapter
-                if self.registry and case.catalog_profile_id:
-                    profile_id = case.catalog_profile_id
-                    if profile_id not in self._adapter_cache:
-                        try:
-                            resolved = self.registry.resolve_profile(profile_id)
-                            self._adapter_cache[profile_id] = ProtocolEvalAdapter(resolved_config=resolved)
-                        except Exception as e:
-                            logger.warning(
-                                "Failed to initialize ProtocolEvalAdapter for profile %s: %s",
-                                profile_id,
-                                e,
-                            )
-                    case_adapter = self._adapter_cache.get(profile_id, self.protocol_adapter)
-
                 completion = completion_provider(case)
-                result = case_adapter.evaluate_case(
+                config = self.protocol_registry.resolve_for_case(run_definition, case)
+                result = config.pack.evaluate_case(
                     run_id=run_definition.run_id,
                     selection=case,
                     completion=completion,
+                    config=config,
                 )
                 self.storage.write_case_result(result)
                 self.storage.append_event(
@@ -193,8 +196,11 @@ class StudioOrchestrator:
                 completed += 1
                 if result.status != StudioRunStatus.COMPLETED:
                     failed += 1
+                summary.completed_cases = completed
+                summary.failed_cases = failed
+                summary.status = StudioRunStatus.RUNNING_PROTOCOL
+                self.storage.update_run_summary(summary)
 
-        summary = self.storage.build_summary(run_definition)
         summary.completed_cases = completed
         summary.failed_cases = failed
         summary.status = (
@@ -225,6 +231,10 @@ def create_run_definition(
     max_parallelism: int = 1,
     repeat_count: int = 1,
     renderer: str = "react",
+    protocol_id: str = "a2ui",
+    protocol_version: str = "0.9",
+    protocol_profile_id: str | None = None,
+    protocol_options: dict | None = None,
     spec_version: str = "0.9",
     catalog_profile_id: str | None = None,
 ) -> StudioRunDefinition:
@@ -241,6 +251,10 @@ def create_run_definition(
         max_parallelism=max_parallelism,
         repeat_count=repeat_count,
         renderer=renderer,
+        protocol_id=protocol_id,
+        protocol_version=protocol_version,
+        protocol_profile_id=protocol_profile_id,
+        protocol_options=protocol_options or {},
         spec_version=spec_version,
         catalog_profile_id=catalog_profile_id,
     )

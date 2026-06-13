@@ -116,8 +116,21 @@ export default function StudioCasePage({
     void loadAnnos();
   }, [runId, groupId, caseId]);
 
+  const protocolId = String(data?.result?.protocol_id ?? data?.protocol?.protocolId ?? data?.caseRecord['protocol_id'] ?? 'a2ui');
+  const protocolVersion = String(
+    data?.result?.protocol_version
+      ?? data?.protocol?.protocolVersion
+      ?? data?.caseRecord['protocol_version']
+      ?? data?.result?.spec_version
+      ?? '0.9',
+  );
+  const protocolProfileId = data?.result?.protocol_profile_id
+    ?? data?.protocol?.protocolProfileId
+    ?? data?.caseRecord['protocol_profile_id'];
+  const catalogProfileId = data?.result?.catalog_profile_id ?? data?.caseRecord['catalog_profile_id'];
+  const isA2UI = protocolId === 'a2ui';
   const messages = useMemo(() => data?.result?.normalized_messages ?? [], [data]);
-  const specVersion = data?.result?.spec_version === '0.8' ? '0.8' : '0.9';
+  const specVersion = isA2UI && protocolVersion === '0.8' ? '0.8' : '0.9';
 
   // Sliced messages based on interactive replay index
   useEffect(() => {
@@ -133,7 +146,7 @@ export default function StudioCasePage({
     return messages.slice(0, activeStepIndex + 1);
   }, [messages, activeStepIndex]);
 
-  const surface = useA2UISurface(activeMessages, specVersion);
+  const surface = useA2UISurface(isA2UI ? activeMessages : [], specVersion);
 
   const steps = useMemo(() => {
     return messages.map((msg: any, idx: number) => {
@@ -218,10 +231,10 @@ export default function StudioCasePage({
     category: 'schema_component',
   }));
 
-  const groupedIssues: Record<string, string[]> = issues.reduce((acc: Record<string, string[]>, issue: any) => {
+  const groupedIssues: Record<string, any[]> = issues.reduce((acc: Record<string, any[]>, issue: any) => {
     const cat = issue.category || 'schema_component';
     if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(issue.message);
+    acc[cat].push(issue);
     return acc;
   }, {});
 
@@ -263,13 +276,25 @@ export default function StudioCasePage({
                     <dd className="font-medium mt-0.5 capitalize">{data.status.status.replace(/_/g, ' ')}</dd>
                   </div>
                   <div className="rounded-xl border border-border/40 bg-background/50 p-2">
+                    <dt className="text-[10px] uppercase text-muted-foreground">Protocol</dt>
+                    <dd className="font-medium mt-0.5">
+                      <ProtocolBadge protocolId={protocolId} protocolVersion={protocolVersion} />
+                    </dd>
+                  </div>
+                  <div className="rounded-xl border border-border/40 bg-background/50 p-2 col-span-2">
                     <dt className="text-[10px] uppercase text-muted-foreground">Renderer</dt>
                     <dd className="font-medium mt-0.5 capitalize">{String(data.result?.renderer ?? data.caseRecord['renderer'] ?? 'react')}</dd>
                   </div>
                   <div className="rounded-xl border border-border/40 bg-background/50 p-2 col-span-2">
-                    <dt className="text-[10px] uppercase text-muted-foreground">Catalog Profile</dt>
-                    <dd className="font-medium mt-0.5 truncate">{String(data.result?.catalog_profile_id ?? data.caseRecord['catalog_profile_id'] ?? 'default')}</dd>
+                    <dt className="text-[10px] uppercase text-muted-foreground">Protocol Profile</dt>
+                    <dd className="font-medium mt-0.5 truncate">{String(protocolProfileId ?? 'default')}</dd>
                   </div>
+                  {isA2UI && (
+                    <div className="rounded-xl border border-border/40 bg-background/50 p-2 col-span-2">
+                    <dt className="text-[10px] uppercase text-muted-foreground">Catalog Profile</dt>
+                    <dd className="font-medium mt-0.5 truncate">{String(catalogProfileId ?? 'default')}</dd>
+                    </div>
+                  )}
                 </dl>
               </section>
 
@@ -285,16 +310,38 @@ export default function StudioCasePage({
                       Protocol validation passed.
                     </div>
                   ) : Object.keys(groupedIssues).length > 0 ? (
-                    Object.entries(groupedIssues).map(([cat, errs]) => (
-                      <div key={cat} className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-1">
+                    Object.entries(groupedIssues).map(([cat, catIssues]) => (
+                      <div key={cat} className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
                         <div className="text-xs font-semibold uppercase tracking-wider text-rose-700 capitalize">
-                          {cat.replace(/_/g, ' ')} ({errs.length})
+                          {cat.replace(/_/g, ' ')} ({catIssues.length})
                         </div>
-                        <ul className="list-disc pl-4 text-xs text-rose-800 space-y-1">
-                          {errs.map((e, i) => (
-                            <li key={i} className="break-all">{e}</li>
-                          ))}
-                        </ul>
+                        <div className="space-y-3">
+                          {catIssues.map((issue, idx) => {
+                            const severity = issue.severity || 'error';
+                            const isWarning = severity === 'warning';
+                            const badgeColor = isWarning
+                              ? 'bg-amber-100/70 text-amber-800 border-amber-300/50'
+                              : 'bg-rose-100/70 text-rose-800 border-rose-300/50';
+
+                            return (
+                              <div key={idx} className="space-y-1 text-xs">
+                                <div className="flex items-start gap-2">
+                                  <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider ${badgeColor} shrink-0 mt-0.5`}>
+                                    {severity}
+                                  </span>
+                                  <span className="font-medium text-rose-950 break-all leading-normal flex-1">
+                                    {issue.message}
+                                  </span>
+                                </div>
+                                {issue.suggestedFix && (
+                                  <div className="ml-10 text-[10px] text-muted-foreground font-medium leading-relaxed italic bg-black/5 rounded-lg p-1.5 mt-1 border border-border/10">
+                                    <span className="font-semibold text-foreground not-italic">Fix suggestion:</span> {issue.suggestedFix}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -311,7 +358,7 @@ export default function StudioCasePage({
                   <MessageSquare className="h-4 w-4 text-primary" />
                   Reviewer Annotations
                 </h2>
-                
+
                 {/* Select Label */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Annotation Label</label>
@@ -382,34 +429,78 @@ export default function StudioCasePage({
                   <PanelRight className="h-4 w-4 text-primary" />
                   Render preview
                 </div>
+              </div>
 
-                {/* Stepper Timeline Navigation */}
-                {steps.length > 0 && (
-                  <div className="flex items-center gap-2 rounded-xl bg-secondary/40 px-2 py-1 text-xs">
+              {/* Interactive Replay Timeline Scrubber */}
+              {steps.length > 0 && (
+                <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-border/40 bg-background/30 p-3 shadow-sm select-none">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Replay Timeline Scrubber</span>
+                    <span className="text-primary font-semibold">
+                      Step {activeStepIndex + 1} of {steps.length}: <span className="capitalize">{steps[activeStepIndex]?.type.replace(/([A-Z])/g, ' $1')}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 mt-1">
                     <button
                       onClick={() => setActiveStepIndex(Math.max(0, activeStepIndex - 1))}
                       disabled={activeStepIndex <= 0}
-                      className="p-1 hover:text-foreground disabled:opacity-40 transition-opacity"
+                      className="rounded-lg p-1.5 hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                      title="Previous Step"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className="font-medium min-w-[70px] text-center select-none">
-                      Step {activeStepIndex + 1} / {steps.length}
-                    </span>
+
+                    <div className="relative flex flex-1 items-center h-6">
+                      {/* Track Background */}
+                      <div className="absolute left-1 right-1 h-1 rounded-full bg-secondary" />
+
+                      {/* Filled Track Progress */}
+                      <div
+                        className="absolute left-1 h-1 rounded-full bg-primary/60 transition-all duration-200"
+                        style={{ width: `${(activeStepIndex / Math.max(1, steps.length - 1)) * 100}%` }}
+                      />
+
+                      {/* Markers */}
+                      <div className="absolute left-1 right-1 flex justify-between items-center">
+                        {steps.map((step) => {
+                          const isActive = activeStepIndex === step.index;
+                          const isPassed = step.index < activeStepIndex;
+
+                          let markerStyle = "bg-background border-muted-foreground/50 hover:border-primary";
+                          if (isActive) {
+                            markerStyle = "bg-primary border-primary ring-4 ring-primary/20 scale-125";
+                          } else if (isPassed) {
+                            markerStyle = "bg-primary/80 border-primary/80 hover:bg-primary";
+                          }
+
+                          return (
+                            <button
+                              key={step.index}
+                              onClick={() => setActiveStepIndex(step.index)}
+                              className={`h-3 w-3 rounded-full border cursor-pointer transition-all duration-200 ${markerStyle} flex items-center justify-center`}
+                              title={`Step ${step.index + 1}: ${step.type}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <button
                       onClick={() => setActiveStepIndex(Math.min(steps.length - 1, activeStepIndex + 1))}
                       disabled={activeStepIndex >= steps.length - 1}
-                      className="p-1 hover:text-foreground disabled:opacity-40 transition-opacity"
+                      className="rounded-lg p-1.5 hover:bg-secondary hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                      title="Next Step"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Render Window */}
               <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-2xl border border-border/60 bg-muted/20 p-4">
-                {activeMessages.length > 0 ? (
+                {isA2UI && activeMessages.length > 0 ? (
                   <div className="min-h-[300px] w-full max-w-3xl rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
                     <A2UIViewer
                       root={surface.root}
@@ -419,6 +510,16 @@ export default function StudioCasePage({
                       catalogId={catalogId}
                       messages={activeMessages}
                     />
+                  </div>
+                ) : !isA2UI && activeMessages.length > 0 ? (
+                  <div className="w-full max-w-3xl rounded-2xl border border-border/50 bg-white p-6 shadow-sm">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <ProtocolBadge protocolId={protocolId} protocolVersion={protocolVersion} />
+                      Normalized protocol payload
+                    </div>
+                    <pre className="max-h-[520px] overflow-auto rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
+                      {JSON.stringify(activeMessages, null, 2)}
+                    </pre>
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground">No rendering output for this step.</div>
@@ -501,11 +602,11 @@ export default function StudioCasePage({
                   <div className="space-y-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       <FileJson className="h-4 w-4 text-primary" />
-                      Catalog components schema
+                      {isA2UI ? 'Catalog components schema' : 'Protocol metadata'}
                     </h3>
                     <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
                       <pre className="overflow-x-auto text-[11px] text-muted-foreground">
-                        {JSON.stringify(data.catalog || {info: 'Catalog schema details not resolved on server'}, null, 2)}
+                        {JSON.stringify(isA2UI ? data.catalog || {info: 'Catalog schema details not resolved on server'} : data.protocol || {info: 'Protocol metadata not resolved on server'}, null, 2)}
                       </pre>
                     </div>
                   </div>
@@ -570,5 +671,26 @@ function PageState({message}: {message: string}) {
         {message}
       </div>
     </div>
+  );
+}
+
+function ProtocolBadge({
+  protocolId,
+  protocolVersion,
+}: {
+  protocolId?: string | null;
+  protocolVersion?: string | null;
+}) {
+  const id = protocolId || 'a2ui';
+  const version = protocolVersion || '0.9';
+  const tone =
+    id === 'openui'
+      ? 'border-sky-500/20 bg-sky-50 text-sky-700'
+      : 'border-indigo-500/20 bg-indigo-50 text-indigo-700';
+
+  return (
+    <span className={`inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${tone}`}>
+      {id}@{version}
+    </span>
   );
 }

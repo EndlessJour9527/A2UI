@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const execFileAsync = promisify(execFile);
-const STUDIO_ROOT = path.resolve(process.cwd(), '../../.a2ui-eval-studio');
+const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 const EVAL_ROOT = path.resolve(process.cwd(), '../../eval');
 
 const safeRegex = /^[a-zA-Z0-9_.-]+$/;
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           'run',
           'python',
           '-c',
-          `from a2ui_eval.studio_storage import StudioStorage; import pathlib; storage = StudioStorage(pathlib.Path('${STUDIO_ROOT.replace(/\\/g, '\\\\')}')); storage.rebuild_indexes()`,
+          `from genui_eval.studio_storage import StudioStorage; import pathlib; storage = StudioStorage(pathlib.Path('${STUDIO_ROOT.replace(/\\/g, '\\\\')}')); storage.rebuild_indexes()`,
         ],
         {
           cwd: EVAL_ROOT,

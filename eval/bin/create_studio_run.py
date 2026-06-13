@@ -30,9 +30,9 @@ EVAL_ROOT = SCRIPT_DIR.parent
 if str(EVAL_ROOT) not in sys.path:
     sys.path.insert(0, str(EVAL_ROOT))
 
-from a2ui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
-from a2ui_eval.studio_storage import build_default_studio_root
-from a2ui_eval.studio_types import StudioCaseSelection, StudioGroupSelection
+from genui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
+from genui_eval.studio_storage import build_default_studio_root
+from genui_eval.studio_types import StudioCaseSelection, StudioGroupSelection
 
 CATALOG_PATH = EVAL_ROOT.parent / "specification" / "v0_9" / "catalogs" / "basic" / "catalog.json"
 SAMPLE_COMPLETION = """<a2ui-json>
@@ -119,6 +119,10 @@ def main() -> None:
         groups=build_sample_groups(),
         model=args.model,
         grading_model=args.grading_model,
+        protocol_id="a2ui",
+        protocol_version="0.9",
+        protocol_profile_id="a2ui-basic-v0_9",
+        protocol_options={"catalogProfileId": "a2ui-basic-v0_9"},
         catalog_profile_id="a2ui-basic-v0_9",
     )
 

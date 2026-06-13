@@ -38,7 +38,7 @@ describe('studio-storage', () => {
   };
 
   const bootstrap: StudioBootstrapData = {
-    studioRoot: '/tmp/.a2ui-eval-studio',
+    studioRoot: '/tmp/.genui-eval-studio',
     runs: [],
     groups: [],
     cases: [],

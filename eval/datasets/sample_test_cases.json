@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Render a weather widget for Tokyo showing 22 degrees and rain",
+    "group": "json-test-group",
+    "description": "Weather widget case",
+    "target": "Expect rain icon, 'Tokyo' and '22°C' text",
+    "renderer": "react",
+    "spec_version": "0.9"
+  },
+  {
+    "prompt": "Render a pricing card for Premium plan at $29/mo",
+    "group": "json-test-group",
+    "description": "Pricing card case",
+    "target": "Expect pricing card with '$29/mo' and plan name 'Premium'",
+    "renderer": "react",
+    "spec_version": "0.9"
+  }
+]

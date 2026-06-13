@@ -17,7 +17,7 @@
 'use client';
 
 import Link from 'next/link';
-import {FlaskConical, FolderTree, RefreshCw, ArrowRight} from 'lucide-react';
+import {FlaskConical, FolderTree, RefreshCw, ArrowRight, FilePlus2} from 'lucide-react';
 import {useStudio} from '@/contexts/studio-context';
 import {Button} from '@/components/ui/button';
 
@@ -35,15 +35,23 @@ export default function StudioPage() {
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">Runs overview</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              First implementation of the local A2UI Eval Studio control plane. It reads the
-              filesystem-backed run/index skeleton produced under <code>.a2ui-eval-studio/</code>
+              First implementation of the local GenUI Eval Studio control plane. It reads the
+              filesystem-backed run/index skeleton produced under <code>.genui-eval-studio/</code>
               and provides a review-first UI for runs, groups, and cases.
             </p>
           </div>
-          <Button variant="outline" onClick={() => void refresh()} className="gap-2 self-start md:self-auto">
-            <RefreshCw className="h-4 w-4" />
-            Refresh indexes
-          </Button>
+          <div className="flex flex-wrap gap-2 self-start md:self-auto">
+            <Button variant="outline" onClick={() => void refresh()} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
+            <Button asChild className="gap-2">
+              <Link href="/studio/create">
+                <FilePlus2 className="h-4 w-4" />
+                Create run
+              </Link>
+            </Button>
+          </div>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -57,8 +65,7 @@ export default function StudioPage() {
             <div>
               <h2 className="text-lg font-semibold">Recent runs</h2>
               <p className="text-sm text-muted-foreground">
-                Use <code>uv run python bin/create_studio_run.py</code> in <code>eval/</code> to
-                seed a sample local run for this MVP.
+                Create a run from Excel, open it here, then start execution from the run controls.
               </p>
             </div>
           </div>
@@ -85,7 +92,8 @@ export default function StudioPage() {
                   <div className="min-w-0">
                     <div className="truncate font-medium text-foreground">{run.name}</div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {run.model} · {run.spec_version} · {run.renderer}
+                      {run.model} · {formatProtocol(run.protocol_id, run.protocol_version)}
+                      {run.protocol_profile_id ? ` · ${run.protocol_profile_id}` : ''} · {run.renderer}
                     </div>
                   </div>
                   <StatusPill status={run.status} />
@@ -136,9 +144,14 @@ function EmptyState() {
       <div>
         <div className="font-medium text-foreground">No local Eval Studio runs yet</div>
         <div className="mt-1 text-sm text-muted-foreground">
-          Seed the MVP data model by running the sample Python bootstrap command in the eval
-          package.
+          Create a run from an Excel test set to initialize the local filesystem workspace.
         </div>
+        <Button asChild className="mt-2 gap-2">
+          <Link href="/studio/create">
+            <FilePlus2 className="h-4 w-4" />
+            Create run
+          </Link>
+        </Button>
       </div>
     </div>
   );
@@ -157,4 +170,10 @@ function StatusPill({status}: {status: string}) {
       {status}
     </span>
   );
+}
+
+function formatProtocol(protocolId?: string | null, protocolVersion?: string | null) {
+  const id = protocolId || 'a2ui';
+  const version = protocolVersion || '0.9';
+  return `${id}@${version}`;
 }

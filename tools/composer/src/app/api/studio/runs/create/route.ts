@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const execFileAsync = promisify(execFile);
-const STUDIO_ROOT = path.resolve(process.cwd(), '../../.a2ui-eval-studio');
+const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 const EVAL_ROOT = path.resolve(process.cwd(), '../../eval');
 
 export async function POST(request: NextRequest) {

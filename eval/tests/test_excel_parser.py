@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import openpyxl
 from pathlib import Path
-from a2ui_eval.excel_parser import parse_excel_test_set
+from genui_eval.excel_parser import parse_excel_test_set
 
 
 def test_excel_parser_parses_valid_sheet(tmp_path: Path):
@@ -97,3 +97,246 @@ def test_excel_parser_parses_valid_sheet(tmp_path: Path):
     assert c2.spec_version == "0.8"
     assert c2.catalog_id is None
     assert c2.catalog_profile_id is None
+
+
+def test_excel_parser_multiple_sheets(tmp_path: Path):
+    excel_path = tmp_path / "multi_sheet.xlsx"
+    wb = openpyxl.Workbook()
+
+    # Sheet 1
+    sheet1 = wb.active
+    sheet1.title = "First Sheet"
+    sheet1.append(["Prompt", "Target"])
+    sheet1.append(["Prompt 1", "Target 1"])
+
+    # Sheet 2
+    sheet2 = wb.create_sheet(title="Second Sheet")
+    sheet2.append(["Prompt", "Target"])
+    sheet2.append(["Prompt 2", "Target 2"])
+
+    wb.save(str(excel_path))
+
+    groups = parse_excel_test_set(excel_path)
+    assert len(groups) == 2
+
+    group_map = {g.group_id: g for g in groups}
+    assert "first-sheet" in group_map
+    assert "second-sheet" in group_map
+
+    assert len(group_map["first-sheet"].cases) == 1
+    assert group_map["first-sheet"].cases[0].prompt == "Prompt 1"
+
+    assert len(group_map["second-sheet"].cases) == 1
+    assert group_map["second-sheet"].cases[0].prompt == "Prompt 2"
+
+
+def test_excel_parser_parses_protocol_columns(tmp_path: Path):
+    excel_path = tmp_path / "protocol_columns.xlsx"
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = "Protocol Cases"
+    sheet.append(
+        [
+            "prompt",
+            "target",
+            "protocol_id",
+            "protocol_profile_id",
+            "protocol_version",
+            "protocol_options",
+            "catalog_profile_id",
+        ]
+    )
+    sheet.append(
+        [
+            "Render an OpenUI card",
+            '{"kind":"card"}',
+            "openui",
+            "openui-default-v1",
+            "1",
+            '{"mode":"skeleton"}',
+            "",
+        ]
+    )
+    sheet.append(
+        [
+            "Render an A2UI card",
+            "Expect A2UI card",
+            "a2ui",
+            "a2ui-basic-v0_9",
+            "0.9",
+            "{}",
+            "a2ui-basic-v0_9",
+        ]
+    )
+    wb.save(str(excel_path))
+
+    groups = parse_excel_test_set(excel_path)
+    cases = groups[0].cases
+
+    assert cases[0].protocol_id == "openui"
+    assert cases[0].protocol_version == "1"
+    assert cases[0].protocol_profile_id == "openui-default-v1"
+    assert cases[0].protocol_options == {"mode": "skeleton"}
+    assert cases[0].catalog_profile_id is None
+
+    assert cases[1].protocol_id == "a2ui"
+    assert cases[1].protocol_version == "0.9"
+    assert cases[1].protocol_profile_id == "a2ui-basic-v0_9"
+    assert cases[1].protocol_options["catalogProfileId"] == "a2ui-basic-v0_9"
+    assert cases[1].catalog_profile_id == "a2ui-basic-v0_9"
+
+
+def test_create_run_from_excel_script(tmp_path: Path):
+    from unittest.mock import patch
+    import sys
+    import io
+    import json
+    from contextlib import redirect_stdout
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bin"))
+    import create_run_from_excel
+
+    excel_path = tmp_path / "test_set.xlsx"
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = "Test Sheet"
+    sheet.append(["Prompt", "Target"])
+    sheet.append(["Test Prompt", "Test Target"])
+    wb.save(str(excel_path))
+
+    studio_root = tmp_path / ".genui-eval-studio"
+
+    test_args = [
+        "create_run_from_excel.py",
+        "--file", str(excel_path),
+        "--model", "test-model",
+        "--studio-root", str(studio_root)
+    ]
+
+    with patch.object(sys, "argv", test_args):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            create_run_from_excel.main()
+
+        output = f.getvalue()
+        result = json.loads(output)
+        assert "runId" in result
+        assert result["totalCases"] == 1
+
+        run_id = result["runId"]
+        run_dir = studio_root / "runs" / run_id
+        assert (run_dir / "source" / "source.xlsx").exists()
+        assert (run_dir / "manifest.json").exists()
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["artifacts"]["source_excel"] == "source/source.xlsx"
+
+
+def test_excel_parser_parses_json_cases(tmp_path: Path):
+    json_path = tmp_path / "test_set.json"
+    import json
+    data = [
+        {
+            "prompt": "Render a dynamic card",
+            "group": "json-flat-group",
+            "description": "Card description",
+            "target": "Card target",
+            "renderer": "react",
+            "spec_version": "0.9"
+        },
+        {
+            "prompt": "Render a dynamic button",
+            "group": "json-flat-group",
+            "target": "Button target",
+            "renderer": "ink"
+        }
+    ]
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    groups = parse_excel_test_set(json_path)
+    assert len(groups) == 1
+    assert groups[0].group_id == "json-flat-group"
+    assert len(groups[0].cases) == 2
+    assert groups[0].cases[0].prompt == "Render a dynamic card"
+    assert groups[0].cases[0].renderer == "react"
+    assert groups[0].cases[1].prompt == "Render a dynamic button"
+    assert groups[0].cases[1].renderer == "ink"
+
+
+def test_excel_parser_parses_json_groups(tmp_path: Path):
+    json_path = tmp_path / "test_groups.json"
+    import json
+    data = [
+        {
+            "group_id": "group-a",
+            "label": "Group A",
+            "cases": [
+                {
+                    "prompt": "Prompt A1",
+                    "target": "Target A1"
+                }
+            ]
+        },
+        {
+            "group_id": "group-b",
+            "label": "Group B",
+            "cases": [
+                {
+                    "prompt": "Prompt B1"
+                }
+            ]
+        }
+    ]
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    groups = parse_excel_test_set(json_path)
+    assert len(groups) == 2
+    group_map = {g.group_id: g for g in groups}
+    assert "group-a" in group_map
+    assert "group-b" in group_map
+    assert group_map["group-a"].label == "Group A"
+    assert group_map["group-a"].cases[0].prompt == "Prompt A1"
+    assert group_map["group-b"].cases[0].prompt == "Prompt B1"
+
+
+def test_create_run_from_json_script(tmp_path: Path):
+    from unittest.mock import patch
+    import sys
+    import io
+    import json
+    from contextlib import redirect_stdout
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bin"))
+    import create_run_from_excel
+
+    json_path = tmp_path / "test_set.json"
+    data = [
+        {"prompt": "Test Prompt JSON", "target": "Test Target JSON"}
+    ]
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    studio_root = tmp_path / ".genui-eval-studio"
+
+    test_args = [
+        "create_run_from_excel.py",
+        "--file", str(json_path),
+        "--model", "test-model-json",
+        "--studio-root", str(studio_root)
+    ]
+
+    with patch.object(sys, "argv", test_args):
+        f = io.StringIO()
+        with redirect_stdout(f):
+            create_run_from_excel.main()
+
+        output = f.getvalue()
+        result = json.loads(output)
+        assert "runId" in result
+        assert result["totalCases"] == 1
+
+        run_id = result["runId"]
+        run_dir = studio_root / "runs" / run_id
+        assert (run_dir / "source" / "source.json").exists()
+        assert (run_dir / "manifest.json").exists()
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["artifacts"]["source_json"] == "source/source.json"
+

@@ -14,7 +14,7 @@
 
 import os
 import pytest
-from a2ui_eval.scorers import a2ui_scorer
+from genui_eval.scorers import a2ui_scorer
 from inspect_ai.scorer import Target
 from inspect_ai.solver import TaskState
 from inspect_ai.model import ModelOutput, ModelName

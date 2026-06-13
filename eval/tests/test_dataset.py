@@ -14,7 +14,7 @@
 
 import os
 import pytest
-from a2ui_eval.dataset import load_a2ui_dataset
+from genui_eval.dataset import load_a2ui_dataset
 
 def test_load_a2ui_dataset(tmp_path):
     # Create a dummy YAML file

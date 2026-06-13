@@ -52,9 +52,9 @@ class StudioArtifactKind(str, Enum):
 
     PROMPT = "protocol.prompt"
     CONTEXT = "protocol.context"
-    RAW_COMPLETION = "protocol.raw_completion"
-    PARSED_MESSAGES = "protocol.parsed_messages"
-    NORMALIZED_MESSAGES = "protocol.normalized_messages"
+    RAW_COMPLETION = "raw.raw_completion"
+    PARSED_MESSAGES = "protocol.parsed"
+    NORMALIZED_MESSAGES = "protocol.normalized"
     VALIDATION = "protocol.validation"
     SEMANTIC_EVAL = "protocol.semantic_eval"
     RENDER_REPLAY = "render.replay"
@@ -71,6 +71,10 @@ class StudioCaseSelection:
     description: str | None = None
     context: str | None = None
     target: str | None = None
+    protocol_id: str = "a2ui"
+    protocol_version: str = "0.9"
+    protocol_profile_id: str | None = None
+    protocol_options: dict[str, Any] = field(default_factory=dict)
     spec_version: str = "0.9"
     renderer: str = "react"
     catalog_id: str | None = None
@@ -102,6 +106,10 @@ class StudioRunDefinition:
     max_parallelism: int = 1
     repeat_count: int = 1
     renderer: str = "react"
+    protocol_id: str = "a2ui"
+    protocol_version: str = "0.9"
+    protocol_profile_id: str | None = None
+    protocol_options: dict[str, Any] = field(default_factory=dict)
     spec_version: str = "0.9"
     catalog_profile_id: str | None = None
     storage_root: Path | None = None
@@ -132,6 +140,10 @@ class StudioCaseResult:
     semantic_evaluation: dict[str, Any] = field(default_factory=dict)
     artifacts: dict[str, str] = field(default_factory=dict)
     renderer: str = "react"
+    protocol_id: str = "a2ui"
+    protocol_version: str = "0.9"
+    protocol_profile_id: str | None = None
+    protocol_options: dict[str, Any] = field(default_factory=dict)
     spec_version: str = "0.9"
     catalog_profile_id: str | None = None
     error: str | None = None
@@ -164,7 +176,11 @@ class StudioRunSummary:
     failed_cases: int
     group_ids: list[str]
     renderer: str
-    spec_version: str
+    protocol_id: str
+    protocol_version: str
+    protocol_profile_id: str | None = None
+    protocol_options: dict[str, Any] = field(default_factory=dict)
+    spec_version: str = "0.9"
     catalog_profile_id: str | None = None
     latest_error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -203,6 +219,14 @@ class StudioAnnotation:
     confidence: float = 1.0
     source: str = "manual"
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+class PlanningError(Exception):
+    """Exception raised for incompatible catalog configs or planning validation errors."""
+
+    def __init__(self, message: str, errors: list[str] = None):
+        super().__init__(message)
+        self.errors = errors or [message]
 
 
 def to_jsonable(value: Any) -> Any:

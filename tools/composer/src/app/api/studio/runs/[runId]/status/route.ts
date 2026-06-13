@@ -18,10 +18,9 @@ import {NextRequest, NextResponse} from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const STUDIO_ROOT = path.resolve(process.cwd(), '../../.a2ui-eval-studio');
+const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 
 const RUNNING_STATUSES = new Set([
-  'queued',
   'preparing',
   'running_protocol',
   'running_render',
@@ -85,12 +84,74 @@ export async function GET(
       // It is fine if events.jsonl does not exist yet or is empty
     }
 
-    const isRunning = RUNNING_STATUSES.has(summary.status);
+    let isRunning = RUNNING_STATUSES.has(summary.status);
+    if (isRunning) {
+      const pidPath = path.join(runDir, 'pid.txt');
+      try {
+        const pidStr = (await fs.readFile(pidPath, 'utf8')).trim();
+        const pid = parseInt(pidStr, 10);
+        if (!isNaN(pid)) {
+          try {
+            process.kill(pid, 0);
+          } catch (killErr: any) {
+            if (killErr.code === 'ESRCH') {
+              // The process has exited!
+              isRunning = false;
+
+              // Read execution.log if present to capture error
+              const logPath = path.join(runDir, 'execution.log');
+              let logContent = '';
+              try {
+                logContent = await fs.readFile(logPath, 'utf8');
+              } catch {}
+
+              let extractedError = 'The background runner process exited unexpectedly.';
+              if (logContent) {
+                const lines = logContent.split('\n').map(l => l.trim()).filter(Boolean);
+                // Find lines containing common error markers or tracebacks
+                const errorLines = lines.filter(l => 
+                  l.toLowerCase().includes('error:') || 
+                  l.toLowerCase().includes('exception:') || 
+                  l.includes('Traceback') || 
+                  l.includes('ValueError:')
+                );
+                if (errorLines.length > 0) {
+                  extractedError = errorLines[errorLines.length - 1] || 'The background runner process exited unexpectedly.';
+                } else if (lines.length > 0) {
+                  extractedError = lines.slice(-3).join('\n');
+                }
+              }
+
+              // Update summary.json
+              summary.status = 'error_infrastructure';
+              summary.latest_error = extractedError;
+              try {
+                await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
+              } catch (writeErr) {
+                console.warn('Failed to update summary.json after process exit:', writeErr);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // pid.txt might not exist yet if process is starting up, which is fine
+      }
+    }
+
+    // Read execution.log if present to capture any stdout/stderr errors (e.g. env issues, launch failures)
+    const logPath = path.join(runDir, 'execution.log');
+    let executionLog: string | null = null;
+    try {
+      executionLog = await fs.readFile(logPath, 'utf8');
+    } catch {
+      // Ignored if file does not exist
+    }
 
     return NextResponse.json({
       summary,
       recentEvents,
       isRunning,
+      executionLog,
     });
   } catch (err: any) {
     console.error('[Runs Status] API error:', err);

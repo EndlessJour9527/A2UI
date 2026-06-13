@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Create an A2UI Eval Studio run using the custom Ink catalog and renderer."""
+"""Create an GenUI Eval Studio run using the custom Ink catalog and renderer."""
 
 from __future__ import annotations
 
@@ -29,9 +29,9 @@ EVAL_ROOT = SCRIPT_DIR.parent
 if str(EVAL_ROOT) not in sys.path:
     sys.path.insert(0, str(EVAL_ROOT))
 
-from a2ui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
-from a2ui_eval.studio_storage import build_default_studio_root
-from a2ui_eval.studio_types import StudioCaseSelection, StudioGroupSelection
+from genui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
+from genui_eval.studio_storage import build_default_studio_root
+from genui_eval.studio_types import StudioCaseSelection, StudioGroupSelection
 
 INK_COMPLETION = """<a2ui-json>
 [
@@ -73,6 +73,10 @@ def build_ink_groups() -> list[StudioGroupSelection]:
             target=INK_COMPLETION,
             spec_version="0.9",
             renderer="ink",
+            protocol_id="a2ui",
+            protocol_version="0.9",
+            protocol_profile_id="a2ui-ink-v0_9",
+            protocol_options={"catalogProfileId": "ink-a2ui-v0_9"},
             catalog_id="https://jsar-project.github.io/ink/a2ui/catalog.json",
             catalog_profile_id="ink-a2ui-v0_9",
         )
@@ -107,6 +111,10 @@ def main() -> None:
         groups=build_ink_groups(),
         model=args.model,
         grading_model="mock",
+        protocol_id="a2ui",
+        protocol_version="0.9",
+        protocol_profile_id="a2ui-ink-v0_9",
+        protocol_options={"catalogProfileId": "ink-a2ui-v0_9"},
         catalog_profile_id="ink-a2ui-v0_9",
     )
 

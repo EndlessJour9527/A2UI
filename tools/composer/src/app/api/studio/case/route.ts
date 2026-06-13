@@ -2,7 +2,7 @@ import {NextRequest, NextResponse} from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const STUDIO_ROOT = path.resolve(process.cwd(), '../../.a2ui-eval-studio');
+const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 
 async function readJson<T>(filePath: string, fallback: T): Promise<T> {
   try {
@@ -52,13 +52,17 @@ export async function GET(request: NextRequest) {
   });
   const result = await readJson(path.join(caseDir, 'result.json'), null);
   const manifest = await readJson(path.join(caseDir, 'artifacts', 'manifest.json'), {artifacts: {}});
+  const protocol = await readJson(path.join(caseDir, 'protocol.json'), null);
   const catalog = await readJson(path.join(caseDir, 'catalog.json'), null);
+  const timeline = await readJson(path.join(caseDir, 'artifacts', 'timeline.json'), {events: []});
 
   return NextResponse.json({
     caseRecord,
     status,
     result,
     manifest,
+    protocol,
     catalog,
+    timeline,
   });
 }

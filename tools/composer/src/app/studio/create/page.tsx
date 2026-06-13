@@ -35,13 +35,15 @@ import {useStudio} from '@/contexts/studio-context';
 
 export default function CreateRunPage() {
   const router = useRouter();
-  const {refresh} = useStudio();
+  const {refresh, bootstrap} = useStudio();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
-  const [model, setModel] = useState('google/gemini-2.5-flash');
-  const [gradingModel, setGradingModel] = useState('google/gemini-2.5-flash');
+  const [modelType, setModelType] = useState('google/gemini-2.5-flash');
+  const [customModel, setCustomModel] = useState('');
+  const [gradingModelType, setGradingModelType] = useState('google/gemini-2.5-flash');
+  const [customGradingModel, setCustomGradingModel] = useState('');
   const [catalogProfileId, setCatalogProfileId] = useState('a2ui-basic-v0_9');
   const [executionMode, setExecutionMode] = useState<'serial' | 'parallel'>('serial');
 
@@ -68,14 +70,16 @@ export default function CreateRunPage() {
       const droppedFile = e.dataTransfer.files[0];
       if (
         droppedFile.name.endsWith('.xlsx') ||
-        droppedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        droppedFile.name.endsWith('.json') ||
+        droppedFile.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        droppedFile.type === 'application/json'
       ) {
         setFile(droppedFile);
         if (!name) {
-          setName(droppedFile.name.replace('.xlsx', '') + ' - Run');
+          setName(droppedFile.name.replace(/\.(xlsx|json)$/, '') + ' - Run');
         }
       } else {
-        setError('Only Excel files (.xlsx) are supported.');
+        setError('Only Excel (.xlsx) or JSON (.json) files are supported.');
       }
     }
   };
@@ -85,7 +89,7 @@ export default function CreateRunPage() {
       const selectedFile = e.target.files[0];
       setFile(selectedFile);
       if (!name) {
-        setName(selectedFile.name.replace('.xlsx', '') + ' - Run');
+        setName(selectedFile.name.replace(/\.(xlsx|json)$/, '') + ' - Run');
       }
     }
   };
@@ -96,8 +100,11 @@ export default function CreateRunPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !model || !name) {
-      setError('Please fill in all required fields and select an Excel file.');
+    const targetModel = modelType === 'custom' ? customModel : modelType;
+    const targetGradingModel = gradingModelType === 'custom' ? customGradingModel : gradingModelType;
+
+    if (!file || !targetModel || !name) {
+      setError('Please fill in all required fields and select an Excel/JSON file.');
       return;
     }
 
@@ -107,8 +114,8 @@ export default function CreateRunPage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
-    formData.append('model', model);
-    formData.append('gradingModel', gradingModel);
+    formData.append('model', targetModel);
+    formData.append('gradingModel', targetGradingModel);
     formData.append('catalogProfileId', catalogProfileId);
     formData.append('executionMode', executionMode);
 
@@ -149,10 +156,10 @@ export default function CreateRunPage() {
             Phase 2 Creator
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            Create run from Excel
+            Create run from Excel or JSON
           </h1>
           <p className="text-sm text-muted-foreground">
-            Import an Excel spreadsheet (`.xlsx`) to dynamically parse prompts, resolve catalog
+            Import an Excel spreadsheet (`.xlsx`) or JSON file (`.json`) to dynamically parse prompts, resolve catalog
             profiles, and initialize a new test execution run.
           </p>
         </header>
@@ -169,7 +176,7 @@ export default function CreateRunPage() {
         {!createdRun ? (
           <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-3">
             <div className="md:col-span-2 space-y-6 rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
-              <h2 className="text-lg font-semibold">1. Select Test Set Spreadsheet</h2>
+              <h2 className="text-lg font-semibold">1. Select Test Set Spreadsheet or JSON</h2>
 
               <div
                 onDragEnter={handleDrag}
@@ -188,7 +195,7 @@ export default function CreateRunPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx"
+                  accept=".xlsx,.json"
                   className="hidden"
                   onChange={handleFileChange}
                 />
@@ -203,7 +210,7 @@ export default function CreateRunPage() {
                         {file.name}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {(file.size / 1024).toFixed(1)} KB · Spreadsheet ready
+                        {(file.size / 1024).toFixed(1)} KB · File ready
                       </div>
                     </div>
                   </>
@@ -214,10 +221,10 @@ export default function CreateRunPage() {
                     </div>
                     <div>
                       <div className="font-medium text-foreground">
-                        Drag and drop your Excel file here
+                        Drag and drop your Excel or JSON file here
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Supports standard .xlsx test sheets (requires a "prompt" header)
+                        Supports standard .xlsx test sheets or .json files
                       </div>
                     </div>
                   </>
@@ -255,28 +262,72 @@ export default function CreateRunPage() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Target Model <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="google/gemini-2.5-flash"
-                    value={model}
-                    onChange={e => setModel(e.target.value)}
+                  <select
+                    value={modelType}
+                    onChange={e => setModelType(e.target.value)}
                     className="w-full rounded-xl border border-border/80 bg-background px-4 py-2 text-sm outline-none focus:border-primary"
-                  />
+                  >
+                    {bootstrap?.providers
+                      ?.filter(p => p.id !== 'mock' && p.id !== 'static')
+                      ?.map(p => (
+                        <optgroup key={p.id} label={p.name}>
+                          {p.models.map(m => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    <optgroup label="Other">
+                      <option value="custom">Other / Custom Model...</option>
+                    </optgroup>
+                  </select>
+                  {modelType === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter custom model (e.g. google/gemini-2.5-flash)"
+                      value={customModel}
+                      onChange={e => setCustomModel(e.target.value)}
+                      className="w-full rounded-xl border border-border/80 bg-background px-4 py-2 text-sm outline-none focus:border-primary mt-2"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Grading Model
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="google/gemini-2.5-flash"
-                    value={gradingModel}
-                    onChange={e => setGradingModel(e.target.value)}
+                  <select
+                    value={gradingModelType}
+                    onChange={e => setGradingModelType(e.target.value)}
                     className="w-full rounded-xl border border-border/80 bg-background px-4 py-2 text-sm outline-none focus:border-primary"
-                  />
+                  >
+                    {bootstrap?.providers
+                      ?.filter(p => p.id !== 'mock' && p.id !== 'static')
+                      ?.map(p => (
+                        <optgroup key={p.id} label={p.name}>
+                          {p.models.map(m => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    <optgroup label="Other">
+                      <option value="custom">Other / Custom Model...</option>
+                    </optgroup>
+                  </select>
+                  {gradingModelType === 'custom' && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter custom grading model"
+                      value={customGradingModel}
+                      onChange={e => setCustomGradingModel(e.target.value)}
+                      className="w-full rounded-xl border border-border/80 bg-background px-4 py-2 text-sm outline-none focus:border-primary mt-2"
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1.5">

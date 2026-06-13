@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Catalog registry and profile resolution for A2UI Eval Studio."""
+"""Catalog registry and profile resolution for GenUI Eval Studio."""
 
 from __future__ import annotations
 

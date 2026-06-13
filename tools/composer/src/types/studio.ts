@@ -43,7 +43,12 @@ export interface StudioRunIndexEntry {
   failed_cases: number;
   group_ids: string[];
   renderer: string;
+  protocol_id: string;
+  protocol_version: string;
+  protocol_profile_id?: string | null;
+  protocol_options?: Record<string, unknown>;
   spec_version: string;
+  catalog_profile_id?: string | null;
   latest_error?: string | null;
   metadata?: Record<string, unknown>;
 }
@@ -62,8 +67,13 @@ export interface StudioCaseIndexEntry {
   prompt: string;
   status: StudioRunStatus | null;
   renderer?: string;
+  protocolId?: string;
+  protocolVersion?: string;
+  protocolProfileId?: string | null;
   specVersion?: string;
+  catalogProfileId?: string | null;
   annotationCount?: number;
+  annotationLabels?: string[];
 }
 
 export interface StudioManifest {
@@ -96,7 +106,12 @@ export interface StudioCaseResult {
     [key: string]: unknown;
   };
   semantic_evaluation: Record<string, unknown>;
+  artifacts?: Record<string, string>;
   renderer: string;
+  protocol_id: string;
+  protocol_version: string;
+  protocol_profile_id?: string | null;
+  protocol_options?: Record<string, unknown>;
   spec_version: string;
   catalog_profile_id?: string | null;
   error?: string | null;
@@ -108,7 +123,21 @@ export interface StudioCaseReviewData {
   status: StudioCaseStatus;
   result?: StudioCaseResult;
   manifest: StudioManifest;
+  protocol?: Record<string, unknown> | null;
   catalog?: Record<string, unknown> | null;
+  timeline?: {
+    events: Array<{
+      event: string;
+      timestamp: string;
+      payload: Record<string, any>;
+    }>;
+  } | null;
+}
+
+export interface StudioProviderInfo {
+  id: string;
+  name: string;
+  models: string[];
 }
 
 export interface StudioBootstrapData {
@@ -116,6 +145,12 @@ export interface StudioBootstrapData {
   runs: StudioRunIndexEntry[];
   groups: StudioGroupIndexEntry[];
   cases: StudioCaseIndexEntry[];
+  proxy?: {
+    model: string;
+    port: string;
+    formatted: string;
+  };
+  providers?: StudioProviderInfo[];
 }
 
 export type StudioAnnotationType = 'label' | 'note' | 'disposition' | 'score';

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Create an A2UI Studio run from an Excel file."""
+"""Create a GenUI Studio run from an Excel file."""
 
 from __future__ import annotations
 
@@ -30,10 +30,10 @@ EVAL_ROOT = SCRIPT_DIR.parent
 if str(EVAL_ROOT) not in sys.path:
     sys.path.insert(0, str(EVAL_ROOT))
 
-from a2ui_eval.excel_parser import parse_excel_test_set
-from a2ui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
-from a2ui_eval.studio_storage import build_default_studio_root
-from a2ui_eval.studio_types import StudioExecutionMode, to_jsonable
+from genui_eval.excel_parser import parse_excel_test_set
+from genui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
+from genui_eval.studio_storage import build_default_studio_root
+from genui_eval.studio_types import StudioExecutionMode, to_jsonable
 
 
 def main() -> None:
@@ -50,10 +50,19 @@ def main() -> None:
         "--catalog-profile-id", default="a2ui-basic-v0_9", help="Catalog profile ID"
     )
     parser.add_argument(
+        "--protocol-profile-id",
+        default=None,
+        help="Protocol profile ID. Defaults to the catalog profile for A2UI runs.",
+    )
+    parser.add_argument(
         "--execution-mode",
         default="serial",
         choices=["serial", "parallel"],
         help="Execution mode",
+    )
+    parser.add_argument(
+        "--studio-root",
+        help="Override Eval Studio root path",
     )
     args = parser.parse_args()
 
@@ -75,7 +84,22 @@ def main() -> None:
             else StudioExecutionMode.PARALLEL
         )
 
-        orchestrator = StudioOrchestrator.for_repo(EVAL_ROOT)
+        if args.studio_root:
+            from genui_eval.studio_storage import StudioStorage
+            from genui_eval.protocols.registry import ProtocolRegistry
+
+            studio_root = Path(args.studio_root)
+            storage = StudioStorage(studio_root)
+            repo_root = EVAL_ROOT.parent if EVAL_ROOT.name == "eval" else EVAL_ROOT
+            protocol_registry = ProtocolRegistry(studio_root, repo_root)
+            protocol_registry.load()
+            orchestrator = StudioOrchestrator(storage=storage, protocol_registry=protocol_registry)
+        else:
+            studio_root = build_default_studio_root(EVAL_ROOT)
+            orchestrator = StudioOrchestrator.for_repo(EVAL_ROOT)
+
+        protocol_profile_id = args.protocol_profile_id or args.catalog_profile_id
+
         run_definition = create_run_definition(
             run_id=run_id,
             name=args.name,
@@ -83,27 +107,45 @@ def main() -> None:
             model=args.model,
             grading_model=args.grading_model,
             execution_mode=exec_mode,
+            protocol_profile_id=protocol_profile_id,
+            protocol_options={"catalogProfileId": args.catalog_profile_id},
             catalog_profile_id=args.catalog_profile_id,
         )
 
         # Populate catalog profile for cases if not set
         for group in run_definition.groups:
             for case in group.cases:
+                if not case.protocol_profile_id:
+                    case.protocol_profile_id = run_definition.protocol_profile_id
                 if not case.catalog_profile_id:
                     case.catalog_profile_id = run_definition.catalog_profile_id
 
         plan = orchestrator.initialize_run(run_definition)
 
         # Save source file
-        studio_root = build_default_studio_root(EVAL_ROOT)
         source_dir = studio_root / "runs" / run_id / "source"
         source_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(excel_path, source_dir / "source.xlsx")
+        
+        is_json = excel_path.suffix.lower() == ".json"
+        source_filename = "source.json" if is_json else "source.xlsx"
+        manifest_key = "source_json" if is_json else "source_excel"
+        
+        shutil.copy2(excel_path, source_dir / source_filename)
+
+        # Record in run manifest
+        run_manifest = {
+            "artifacts": {
+                "source_filename": f"source/{source_filename}",
+                manifest_key: f"source/{source_filename}"
+            }
+        }
+        orchestrator.storage.write_json(studio_root / "runs" / run_id / "manifest.json", run_manifest)
 
         result = {
             "runId": run_id,
             "name": run_definition.name,
             "model": run_definition.model,
+            "protocolProfileId": run_definition.protocol_profile_id,
             "catalogProfileId": run_definition.catalog_profile_id,
             "executionMode": run_definition.execution_mode.value,
             "totalCases": sum(len(g.cases) for g in groups),

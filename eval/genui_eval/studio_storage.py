@@ -42,7 +42,7 @@ def build_default_studio_root(eval_root: Path | None = None) -> Path:
         eval_root = Path(__file__).resolve().parents[2]
     if eval_root.name == "eval":
         eval_root = eval_root.parent
-    return eval_root / ".a2ui-eval-studio"
+    return eval_root / ".genui-eval-studio"
 
 
 class StudioStorage:
@@ -73,6 +73,7 @@ class StudioStorage:
         self.write_json(run_dir / "run.json", run_definition)
         self.write_json(run_dir / "plan.json", run_plan)
         self.write_json(run_dir / "summary.json", self.build_summary(run_definition))
+        self.write_json(run_dir / "protocol.json", self.protocol_snapshot(run_definition))
         (run_dir / "events.jsonl").touch(exist_ok=True)
 
         for group in run_definition.groups:
@@ -92,6 +93,7 @@ class StudioStorage:
             for case in group.cases:
                 case_dir = self.case_dir(run_definition.run_id, group.group_id, case.case_id)
                 for leaf in (
+                    case_dir / "raw",
                     case_dir / "protocol",
                     case_dir / "render",
                     case_dir / "device",
@@ -100,6 +102,7 @@ class StudioStorage:
                     leaf.mkdir(parents=True, exist_ok=True)
 
                 self.write_json(case_dir / "case.json", case)
+                self.write_json(case_dir / "protocol.json", self.protocol_snapshot(case))
                 self.write_json(
                     case_dir / "status.json",
                     {
@@ -131,29 +134,84 @@ class StudioStorage:
         """Persist normalized result artifacts and materialized status."""
 
         case_dir = self.case_dir(result.run_id, result.group_id, result.case_id)
+        raw_dir = case_dir / "raw"
         protocol_dir = case_dir / "protocol"
         render_dir = case_dir / "render"
         artifacts_dir = case_dir / "artifacts"
 
         if result.raw_completion is not None:
-            self.write_text(protocol_dir / "raw_completion.md", result.raw_completion)
-        self.write_json(protocol_dir / "parsed_messages.json", result.parsed_messages)
-        self.write_json(protocol_dir / "normalized_messages.json", result.normalized_messages)
+            self.write_text(raw_dir / "raw_completion.md", result.raw_completion)
+        self.write_json(protocol_dir / "parsed.json", result.parsed_messages)
+        self.write_json(protocol_dir / "normalized.json", result.normalized_messages)
         self.write_json(protocol_dir / "validation.json", result.validation)
         self.write_json(protocol_dir / "semantic_eval.json", result.semantic_evaluation)
+        self.write_json(case_dir / "protocol.json", self.protocol_snapshot(result))
         self.write_json(render_dir / "replay.json", result.normalized_messages)
 
         manifest = {
             "artifacts": {
-                StudioArtifactKind.RAW_COMPLETION.value: "protocol/raw_completion.md",
-                StudioArtifactKind.PARSED_MESSAGES.value: "protocol/parsed_messages.json",
-                StudioArtifactKind.NORMALIZED_MESSAGES.value: "protocol/normalized_messages.json",
+                StudioArtifactKind.RAW_COMPLETION.value: "raw/raw_completion.md",
+                StudioArtifactKind.PARSED_MESSAGES.value: "protocol/parsed.json",
+                StudioArtifactKind.NORMALIZED_MESSAGES.value: "protocol/normalized.json",
                 StudioArtifactKind.VALIDATION.value: "protocol/validation.json",
                 StudioArtifactKind.SEMANTIC_EVAL.value: "protocol/semantic_eval.json",
                 StudioArtifactKind.RENDER_REPLAY.value: "render/replay.json",
             }
         }
         self.write_json(artifacts_dir / "manifest.json", manifest)
+
+        # Construct and populate timeline.json events
+        timeline_events = []
+        now = datetime.now(timezone.utc).isoformat()
+
+        # 1. Completion received
+        has_completion = result.raw_completion is not None
+        timeline_events.append({
+            "event": "completion_received",
+            "timestamp": now,
+            "payload": {
+                "success": has_completion,
+                "length": len(result.raw_completion) if has_completion else 0
+            }
+        })
+
+        # 2. Parsed
+        has_parsed = len(result.parsed_messages) > 0
+        timeline_events.append({
+            "event": "parsed",
+            "timestamp": now,
+            "payload": {
+                "success": has_parsed,
+                "message_count": len(result.parsed_messages)
+            }
+        })
+
+        # 3. Validated
+        val_pass = result.validation.get("pass", False)
+        timeline_events.append({
+            "event": "validated",
+            "timestamp": now,
+            "payload": {
+                "pass": val_pass,
+                "errors_count": len(result.validation.get("errors", [])),
+                "issues_categories": [issue.get("category") for issue in result.validation.get("issues", [])]
+            }
+        })
+
+        # 4. Scored
+        score_pass = result.semantic_evaluation.get("pass", False)
+        grade = result.semantic_evaluation.get("grade")
+        timeline_events.append({
+            "event": "scored",
+            "timestamp": now,
+            "payload": {
+                "pass": score_pass,
+                "grade": grade
+            }
+        })
+
+        self.write_json(artifacts_dir / "timeline.json", {"events": timeline_events})
+
         self.write_json(
             case_dir / "status.json",
             {
@@ -186,6 +244,10 @@ class StudioStorage:
             failed_cases=0,
             group_ids=[group.group_id for group in run_definition.groups],
             renderer=run_definition.renderer,
+            protocol_id=run_definition.protocol_id,
+            protocol_version=run_definition.protocol_version,
+            protocol_profile_id=run_definition.protocol_profile_id,
+            protocol_options=run_definition.protocol_options,
             spec_version=run_definition.spec_version,
             catalog_profile_id=run_definition.catalog_profile_id,
             metadata=run_definition.metadata,
@@ -195,6 +257,31 @@ class StudioStorage:
         """Persist a run summary and refresh indexes."""
 
         self.write_json(self.run_dir(summary.run_id) / "summary.json", summary)
+        self.rebuild_indexes()
+
+    def update_case_status(
+        self,
+        run_id: str,
+        group_id: str,
+        case_id: str,
+        status: str,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Persist a lightweight case status update for in-flight WebUI polling."""
+
+        self.write_json(
+            self.case_dir(run_id, group_id, case_id) / "status.json",
+            {
+                "runId": run_id,
+                "groupId": group_id,
+                "caseId": case_id,
+                "status": status,
+                "updatedAt": datetime.now(timezone.utc),
+                "error": error,
+                "metadata": metadata or {},
+            },
+        )
         self.rebuild_indexes()
 
     def rebuild_indexes(self) -> None:
@@ -232,10 +319,12 @@ class StudioStorage:
                     
                     annotations_path = case_path.parent / "annotations.json"
                     annotation_count = 0
+                    annotation_labels = []
                     if annotations_path.exists():
                         try:
                             ann_data = json.loads(annotations_path.read_text(encoding="utf-8"))
                             annotation_count = len(ann_data.get("labels", [])) + len(ann_data.get("notes", []))
+                            annotation_labels = [l.get("value") for l in ann_data.get("labels", []) if l.get("value")]
                         except Exception:
                             pass
 
@@ -247,15 +336,37 @@ class StudioStorage:
                             "prompt": case_data.get("prompt", ""),
                             "status": status,
                             "renderer": case_data.get("renderer"),
+                            "protocolId": case_data.get("protocol_id", "a2ui"),
+                            "protocolVersion": case_data.get("protocol_version", case_data.get("spec_version")),
+                            "protocolProfileId": case_data.get("protocol_profile_id"),
                             "specVersion": case_data.get("spec_version"),
                             "catalogProfileId": case_data.get("catalog_profile_id"),
                             "annotationCount": annotation_count,
+                            "annotationLabels": annotation_labels,
                         }
                     )
 
         self.write_json(self.indexes_dir / "runs.json", runs_index)
         self.write_json(self.indexes_dir / "groups.json", groups_index)
         self.write_json(self.indexes_dir / "cases.json", cases_index)
+
+    def protocol_snapshot(self, source: Any) -> dict[str, Any]:
+        """Return the persisted protocol identity for a run, case, or result."""
+
+        return {
+            "protocolId": getattr(source, "protocol_id", "a2ui"),
+            "protocolVersion": getattr(
+                source,
+                "protocol_version",
+                getattr(source, "spec_version", "0.9"),
+            ),
+            "protocolProfileId": getattr(source, "protocol_profile_id", None),
+            "adapterId": (
+                f"genui_eval.protocols.{getattr(source, 'protocol_id', 'a2ui')}"
+            ),
+            "protocolOptions": getattr(source, "protocol_options", {}),
+            "provenance": {},
+        }
 
     def case_annotations_path(self, run_id: str, group_id: str, case_id: str) -> Path:
         return self.case_dir(run_id, group_id, case_id) / "annotations.json"

@@ -136,6 +136,7 @@ export function InkRendererViewer({messages = []}: InkRendererViewerProps) {
         let lastScale = 0;
 
         resizeObserver = new ResizeObserver(entries => {
+          if (disposed) return;
           if (entries[0] && viewInstance) {
             const {width, height} = entries[0].contentRect;
             const scale = window.devicePixelRatio || 1;

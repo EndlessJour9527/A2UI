@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Protocol adapter used by Eval Studio MVP."""
+"""A2UI protocol adapter used by GenUI Eval Studio."""
 
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ from a2ui.parser.parser import parse_response
 from a2ui.schema.catalog import CatalogConfig
 from a2ui.schema.manager import A2uiSchemaManager
 
+from ...studio_types import StudioCaseResult, StudioCaseSelection, StudioRunStatus
 from .catalog_registry import ResolvedCatalogConfig
-from .studio_types import StudioCaseResult, StudioCaseSelection, StudioRunStatus
 
 
 def categorize_validation_error(error_msg: str) -> str:
@@ -51,8 +51,48 @@ def categorize_validation_error(error_msg: str) -> str:
     return "schema_component"
 
 
-class ProtocolEvalAdapter:
-    """Thin wrapper around the official SDK-backed parsing and validation flow."""
+def analyze_validation_error(error_msg: str) -> dict[str, str]:
+    """Analyze validation error messages to provide category, severity, and suggested fix."""
+    msg_lower = error_msg.lower()
+
+    # Defaults
+    category = "schema_component"
+    severity = "error"
+    suggested_fix = "Adjust component properties to match the schema definitions for this component type."
+
+    # Topology errors
+    if any(k in msg_lower for k in ("circular", "orphan", "reachable", "topology")):
+        category = "topology"
+        severity = "error"
+        suggested_fix = "Check component parent/child reference IDs to ensure no cyclic or orphan relationships exist."
+
+    # Integrity errors
+    elif any(k in msg_lower for k in ("integrity", "unique", "duplicate", "must exist", "root component", "does not exist")):
+        category = "integrity"
+        severity = "error"
+        suggested_fix = "Ensure component IDs are unique, references point to existing components, and a component with ID 'root' exists."
+
+    # Schema Structure (message level / JSON level)
+    elif any(k in msg_lower for k in ("is not an object", "unknown message type", "json", "syntax", "no a2ui json")):
+        category = "schema_structure"
+        severity = "error"
+        suggested_fix = "Verify the format of the output and ensure it is correctly enclosed in <a2ui-json>...</a2ui-json> tags."
+
+    # Schema Hallucination (made up elements/properties)
+    elif any(k in msg_lower for k in ("additional properties", "unevaluated properties", "not allowed", "unknown key")):
+        category = "schema_hallucination"
+        severity = "warning"
+        suggested_fix = "Remove additional or hallucinated properties that are not supported by the catalog schema."
+
+    return {
+        "category": category,
+        "severity": severity,
+        "suggestedFix": suggested_fix,
+    }
+
+
+class A2uiProtocolAdapter:
+    """Thin wrapper around the A2UI SDK-backed parsing and validation flow."""
 
     def __init__(
         self,
@@ -105,7 +145,12 @@ class ProtocolEvalAdapter:
                     "pass": False,
                     "errors": [error],
                     "explanation": error,
-                    "issues": [{"message": error, "category": "schema_structure"}],
+                    "issues": [{
+                        "message": error,
+                        "category": "schema_structure",
+                        "severity": "error",
+                        "suggestedFix": "Verify the format of the output and ensure it is correctly enclosed in <a2ui-json>...</a2ui-json> tags."
+                    }],
                 }
             else:
                 self.validator.validate(parsed_messages)
@@ -118,24 +163,27 @@ class ProtocolEvalAdapter:
         except Exception as exc:  # pylint: disable=broad-exception-caught
             status = StudioRunStatus.FAILED_PROTOCOL
             error = str(exc)
-            
+
             raw_errors = []
             if "Validation failed:" in error:
                 for line in error.split("\n"):
                     stripped = line.strip()
                     if stripped.startswith("- "):
                         raw_errors.append(stripped[2:])
-            
+
             if not raw_errors:
                 raw_errors = [error]
-                
+
             issues = []
             for err in raw_errors:
+                analysis = analyze_validation_error(err)
                 issues.append({
                     "message": err,
-                    "category": categorize_validation_error(err)
+                    "category": analysis["category"],
+                    "severity": analysis["severity"],
+                    "suggestedFix": analysis["suggestedFix"],
                 })
-                
+
             validation = {
                 "pass": False,
                 "errors": raw_errors,
@@ -162,10 +210,17 @@ class ProtocolEvalAdapter:
             validation=validation,
             semantic_evaluation=semantic_payload,
             renderer=selection.renderer,
-            spec_version=selection.spec_version,
+            spec_version=selection.protocol_version,
+            protocol_id="a2ui",
+            protocol_version=selection.protocol_version,
+            protocol_profile_id=selection.protocol_profile_id,
+            protocol_options=selection.protocol_options,
             catalog_profile_id=selection.catalog_profile_id,
             error=error,
             metadata={
+                "protocolId": "a2ui",
+                "protocolVersion": selection.protocol_version,
+                "protocolProfileId": selection.protocol_profile_id,
                 "catalogId": selection.catalog_id,
                 "catalogProfileId": selection.catalog_profile_id,
                 "description": selection.description,
