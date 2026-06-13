@@ -33,6 +33,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hono": "^4.11.10",
+    "lightningcss-darwin-arm64": "^1.32.0",
     "localforage": "^1.10.0",
     "lucide-react": "^0.556.0",
     "next": "16.2.6",
