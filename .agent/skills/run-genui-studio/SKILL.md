@@ -14,9 +14,9 @@ Use this skill to run the local GenUI Eval Studio stack in this repository and c
 - Eval backend: `eval/`
 - Composer Studio UI: `tools/composer/`
 - Studio storage root: `.genui-eval-studio/`
-- Python package: `genui_eval`
-- Run executor module: `genui_eval.run_executor`
-- Protocol packs: `eval/genui_eval/protocols/`
+- Python package: `a2ui_eval`
+- Run executor module: `a2ui_eval.run_executor`
+- Protocol packs: `eval/a2ui_eval/protocols/`
 
 Do not use the legacy `a2ui_eval` package name or `.a2ui-eval-studio` storage root.
 
@@ -96,7 +96,7 @@ uv run python bin/create_run_from_excel.py --file <path-to-xlsx> --model <model-
 
 ```bash
 cd eval
-uv run python -m genui_eval.run_executor <run-id> --provider mock
+uv run python -m a2ui_eval.run_executor <run-id> --provider mock
 ```
 
 Use `mock` for smoke tests because it avoids external services and should produce valid protocol artifacts. Use `static` when cases include target payloads and the goal is to replay/evaluate those exact targets. Use `local-openai:<model>` when the user's local OpenAI-compatible proxy is running. Use `llm:<model>` only when the user explicitly wants real model calls and credentials are available.
@@ -108,7 +108,7 @@ export GENUI_EVAL_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8045/v1"
 export GENUI_EVAL_LOCAL_OPENAI_API_KEY="<local-proxy-api-key>"
 export GENUI_EVAL_LOCAL_OPENAI_MODEL="gemini-3.5-flash-extra-low"
 cd eval
-uv run python -m genui_eval.run_executor <run-id> --provider local-openai:gemini-3.5-flash-extra-low
+uv run python -m a2ui_eval.run_executor <run-id> --provider local-openai:gemini-3.5-flash-extra-low
 ```
 
 The equivalent Python client shape is OpenAI-compatible:

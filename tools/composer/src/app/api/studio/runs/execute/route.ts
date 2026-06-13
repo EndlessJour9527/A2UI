@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         '3.13',
         'python',
         '-m',
-        'genui_eval.run_executor',
+        'a2ui_eval.run_executor',
         safeRunId,
         '--validate-only'
       ], {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       'run',
       'python',
       '-m',
-      'genui_eval.run_executor',
+      'a2ui_eval.run_executor',
       safeRunId,
       '--provider',
       provider

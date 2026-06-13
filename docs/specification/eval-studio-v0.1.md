@@ -12,7 +12,7 @@
 | **Audience** | Maintainers, contributors, eval authors, renderer integrators |
 | **Primary Scope** | Local-first production-grade Eval Studio for GenUI agent output observation, evaluation, and tuning data collection |
 | **Related systems** | `eval/`, `tools/composer`, `specification/v0_9/eval/`, A2UI Python SDK, future OpenUI adapters |
-| **Current implementation baseline** | MVP skeleton exists in `eval/genui_eval/studio_*`, `eval/genui_eval/protocols/*`, and `tools/composer/src/app/studio/*`; Studio core is protocol-neutral with A2UI as the first protocol pack and an OpenUI skeleton pack |
+| **Current implementation baseline** | MVP skeleton exists in `eval/a2ui_eval/studio_*`, `eval/a2ui_eval/protocols/*`, and `tools/composer/src/app/studio/*`; Studio core is protocol-neutral with A2UI as the first protocol pack and an OpenUI skeleton pack |
 
 ## Overview
 
@@ -20,7 +20,7 @@ GenUI agents need a production-grade evaluation workspace for rapid testing, evi
 
 Eval Studio fills that gap.
 
-It is **not** a replacement for protocol-specific protocol packs such as `genui_eval.protocols.a2ui`. Instead, it is a **protocol-neutral control plane and review workspace** for GenUI generation results. Protocol-specific packs provide parsing, validation, prompt shaping, rendering, and semantic rules through adapters.
+It is **not** a replacement for protocol-specific protocol packs such as `a2ui_eval.protocols.a2ui`. Instead, it is a **protocol-neutral control plane and review workspace** for GenUI generation results. Protocol-specific packs provide parsing, validation, prompt shaping, rendering, and semantic rules through adapters.
 
 Eval Studio adds:
 
@@ -110,10 +110,10 @@ Today the repository has three relevant foundations:
 
 3. **First Eval Studio MVP skeleton**
    - backend skeleton in:
-     - `eval/genui_eval/studio_types.py`
-     - `eval/genui_eval/studio_storage.py`
-     - `eval/genui_eval/studio_adapter.py`
-     - `eval/genui_eval/studio_orchestrator.py`
+     - `eval/a2ui_eval/studio_types.py`
+     - `eval/a2ui_eval/studio_storage.py`
+     - `eval/a2ui_eval/studio_adapter.py`
+     - `eval/a2ui_eval/studio_orchestrator.py`
      - `eval/bin/create_studio_run.py`
    - frontend skeleton in:
      - `tools/composer/src/app/studio/*`
@@ -298,7 +298,7 @@ Content-Type: application/json
 }
 ```
 
-The API validates the run id, validates the provider string, runs planning/compatibility checks with `genui_eval.run_executor --validate-only`, marks the run as `preparing`, and starts `genui_eval.run_executor` in the background. The status endpoint remains polling-based for v0.1:
+The API validates the run id, validates the provider string, runs planning/compatibility checks with `a2ui_eval.run_executor --validate-only`, marks the run as `preparing`, and starts `a2ui_eval.run_executor` in the background. The status endpoint remains polling-based for v0.1:
 
 ```http
 GET /api/studio/runs/<runId>/status
@@ -383,7 +383,7 @@ Eval Studio's product boundary is **GenUI agent output evaluation**, not A2UI al
 
 The original MVP implementation was A2UI-shaped:
 
-- package namespace: `eval/genui_eval`, with A2UI behavior now under `eval/genui_eval/protocols/a2ui`
+- package namespace: `eval/a2ui_eval`, with A2UI behavior now under `eval/a2ui_eval/protocols/a2ui`
 - adapter name: `ProtocolEvalAdapter`, now split into `A2uiProtocolAdapter` behind the A2UI pack
 - run planning fields: `catalog_profile_id`, `catalog_id`, `spec_version`
 - replay path assumes A2UI-like message streams
@@ -482,8 +482,8 @@ The existing A2UI implementation is the first protocol pack:
 
 - `CatalogRegistry` is an A2UI pack dependency, not a Studio core dependency
 - the original `ProtocolEvalAdapter` behavior lives behind `A2uiProtocolAdapter`
-- `genui_eval.solvers` remains a prompt-generation reference for the A2UI pack's `build_prompt`
-- `genui_eval.scorers` remains a validation and judge-bridge reference for A2UI pack validation/scoring hooks
+- `a2ui_eval.solvers` remains a prompt-generation reference for the A2UI pack's `build_prompt`
+- `a2ui_eval.scorers` remains a validation and judge-bridge reference for A2UI pack validation/scoring hooks
 - the Composer A2UI viewer remains the default A2UI replay adapter
 
 This preserves existing functionality while making the boundary honest.
@@ -521,9 +521,9 @@ OpenUI support should not require changes to:
 4. update storage to write `protocol.json` at run and case level
 5. update UI types to display protocol identity independently from catalog identity
 6. add OpenUI adapter skeleton with parser/validator placeholders and artifact persistence tests
-7. keep `genui_eval` as the canonical package name and do not add a public legacy A2UI import alias
+7. keep `a2ui_eval` as the canonical package name and do not add a public legacy A2UI import alias
 
-The package rename is intentionally explicit: new code and Studio entrypoints use `genui_eval`, while A2UI-specific behavior remains visible through the `a2ui` protocol pack.
+The package rename is intentionally explicit: new code and Studio entrypoints use `a2ui_eval`, while A2UI-specific behavior remains visible through the `a2ui` protocol pack.
 
 ## Catalog Extension Architecture
 
@@ -992,13 +992,13 @@ Phase 3 introduces true multi-protocol support without disrupting the A2UI workf
 
 | File | Current role | Notes |
 | --- | --- |
-| `eval/genui_eval/studio_types.py` | shared data structures for runs, cases, events, summaries | exposes protocol-neutral fields and keeps A2UI fields as compatibility aliases |
-| `eval/genui_eval/studio_storage.py` | filesystem layout, write/read helpers, index rebuild | persists `protocol.json`, raw artifacts, protocol-specific artifacts, and normalized result envelopes |
-| `eval/genui_eval/studio_orchestrator.py` | run planning and synchronous execution skeleton | depends on `ProtocolRegistry`, not A2UI catalog registry directly |
-| `eval/genui_eval/protocols/registry.py` | protocol profile seeding, loading, and effective config resolution | resolves run/case protocol selection before execution |
-| `eval/genui_eval/protocols/a2ui/adapter.py` | parse + validate wrapper over A2UI SDK-backed flow | used behind the A2UI protocol pack |
-| `eval/genui_eval/protocols/a2ui/pack.py` | A2UI prompt/evaluation/profile boundary | owns A2UI catalog compatibility |
-| `eval/genui_eval/protocols/openui/pack.py` | OpenUI skeleton boundary | captures raw output, writes protocol artifacts, and emits placeholder validation |
+| `eval/a2ui_eval/studio_types.py` | shared data structures for runs, cases, events, summaries | exposes protocol-neutral fields and keeps A2UI fields as compatibility aliases |
+| `eval/a2ui_eval/studio_storage.py` | filesystem layout, write/read helpers, index rebuild | persists `protocol.json`, raw artifacts, protocol-specific artifacts, and normalized result envelopes |
+| `eval/a2ui_eval/studio_orchestrator.py` | run planning and synchronous execution skeleton | depends on `ProtocolRegistry`, not A2UI catalog registry directly |
+| `eval/a2ui_eval/protocols/registry.py` | protocol profile seeding, loading, and effective config resolution | resolves run/case protocol selection before execution |
+| `eval/a2ui_eval/protocols/a2ui/adapter.py` | parse + validate wrapper over A2UI SDK-backed flow | used behind the A2UI protocol pack |
+| `eval/a2ui_eval/protocols/a2ui/pack.py` | A2UI prompt/evaluation/profile boundary | owns A2UI catalog compatibility |
+| `eval/a2ui_eval/protocols/openui/pack.py` | OpenUI skeleton boundary | captures raw output, writes protocol artifacts, and emits placeholder validation |
 | `eval/bin/create_studio_run.py` | sample run bootstrap script for local UI development | defaults to the A2UI protocol profile |
 
 ### Frontend skeleton
@@ -1019,8 +1019,8 @@ Phase 3 introduces true multi-protocol support without disrupting the A2UI workf
 | Existing module | Reused role |
 | --- | --- |
 | `eval/tasks.py` | official task wiring reference |
-| `eval/genui_eval/solvers.py` | A2UI protocol-pack prompt/context generation reference |
-| `eval/genui_eval/scorers.py` | A2UI protocol-pack parser/validator/judge bridge reference |
+| `eval/a2ui_eval/solvers.py` | A2UI protocol-pack prompt/context generation reference |
+| `eval/a2ui_eval/scorers.py` | A2UI protocol-pack parser/validator/judge bridge reference |
 | `agent_sdks/conformance/conformance_schema.json` | reference contract for path-or-inline catalog/schema resolution |
 | `tools/composer/src/lib/a2ui.tsx` | spec-version-aware viewer adapter |
 | `tools/composer/src/components/theater/useA2UISurface.ts` | normalized messages → renderable surface state |
@@ -1094,8 +1094,8 @@ A new Studio page should:
 | Protocol correctness | protocol packs such as A2UI and future OpenUI adapters |
 | Protocol profile resolution | Protocol Registry in eval-side Studio backend |
 | A2UI catalog profile resolution | A2UI protocol pack registry |
-| Local run storage | Studio storage backend, currently `eval/genui_eval/studio_storage.py` until package rename |
-| Studio orchestration | Studio orchestrator backend, currently `eval/genui_eval/studio_orchestrator.py` until package rename |
+| Local run storage | Studio storage backend, currently `eval/a2ui_eval/studio_storage.py` until package rename |
+| Studio orchestration | Studio orchestrator backend, currently `eval/a2ui_eval/studio_orchestrator.py` until package rename |
 | Browser UI and navigation | `tools/composer/src/app/studio/*` |
 | Renderer preview integration | Composer viewer adapters and replay layer |
 | Device evidence collection | future collector modules beneath eval-side Studio backend |

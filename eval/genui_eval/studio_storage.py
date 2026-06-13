@@ -424,7 +424,7 @@ class StudioStorage:
             ),
             "protocolProfileId": getattr(source, "protocol_profile_id", None),
             "adapterId": (
-                f"genui_eval.protocols.{getattr(source, 'protocol_id', 'a2ui')}"
+                f"a2ui_eval.protocols.{getattr(source, 'protocol_id', 'a2ui')}"
             ),
             "protocolOptions": getattr(source, "protocol_options", {}),
             "provenance": {},

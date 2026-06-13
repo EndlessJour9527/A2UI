@@ -55,7 +55,7 @@ For a local OpenAI-compatible proxy, keep credentials in environment variables r
 export GENUI_EVAL_LOCAL_OPENAI_BASE_URL="http://127.0.0.1:8045/v1"
 export GENUI_EVAL_LOCAL_OPENAI_API_KEY="<local-proxy-api-key>"
 export GENUI_EVAL_LOCAL_OPENAI_MODEL="gemini-3.5-flash-extra-low"
-uv run python -m genui_eval.run_executor <run-id> --provider local-openai:gemini-3.5-flash-extra-low
+uv run python -m a2ui_eval.run_executor <run-id> --provider local-openai:gemini-3.5-flash-extra-low
 ```
 
 The Studio WebUI exposes the same provider as **Local Proxy: Gemini 3.5 Flash Extra Low**.
