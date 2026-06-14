@@ -28,8 +28,12 @@ export async function fetchStudioCaseReview(
   runId: string,
   groupId: string,
   caseId: string,
+  executionId?: string,
 ): Promise<StudioCaseReviewData> {
   const params = new URLSearchParams({runId, groupId, caseId});
+  if (executionId) {
+    params.set('executionId', executionId);
+  }
   const response = await fetch(`/api/studio/case?${params.toString()}`, {cache: 'no-store'});
   if (!response.ok) {
     throw new Error(`Failed to load case review data (${response.status})`);

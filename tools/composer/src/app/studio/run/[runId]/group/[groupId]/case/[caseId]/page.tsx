@@ -43,13 +43,17 @@ import type {StudioCaseReviewData, StudioAnnotation} from '@/types/studio';
 
 export default function StudioCasePage({
   params,
+  searchParams,
 }: {
   params: Promise<{runId: string; groupId: string; caseId: string}>;
+  searchParams: Promise<{executionId?: string}>;
 }) {
   const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
   const runId = resolvedParams.runId;
   const groupId = resolvedParams.groupId;
   const caseId = resolvedParams.caseId;
+  const executionId = resolvedSearchParams.executionId;
 
   const [data, setData] = useState<StudioCaseReviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +78,7 @@ export default function StudioCasePage({
       setLoading(true);
       setError(null);
       try {
-        const reviewData = await fetchStudioCaseReview(runId, groupId, caseId);
+        const reviewData = await fetchStudioCaseReview(runId, groupId, caseId, executionId);
         if (!disposed) {
           setData(reviewData);
         }
@@ -93,7 +97,7 @@ export default function StudioCasePage({
     return () => {
       disposed = true;
     };
-  }, [caseId, groupId, runId]);
+  }, [caseId, groupId, runId, executionId]);
 
   // Load annotations
   useEffect(() => {
@@ -247,7 +251,7 @@ export default function StudioCasePage({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <Link
-              href={`/studio/run/${runId}`}
+              href={`/studio/run/${runId}${executionId ? `?executionId=${executionId}` : ''}`}
               className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />

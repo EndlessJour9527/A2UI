@@ -232,6 +232,7 @@ class NvidiaProvider(BaseProvider):
         return [
             "deepseek-ai/deepseek-v4-flash",
             "nvidia/llama-3.1-nemotron-70b-instruct",
+            "nvidia/nemotron-3-super-120b-a12b",
             "z-ai/glm-5.1",
         ]
 
@@ -252,38 +253,49 @@ class NvidiaProvider(BaseProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        extra_body = {"chat_template_kwargs": {"thinking": True, "reasoning_effort": "high"}}
+        if "nemotron" in model_name.lower():
+            extra_body = {"chat_template_kwargs": {"enable_thinking": True}}
+
         try:
-            completion = client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                temperature=1.0,
-                top_p=0.95,
-                max_tokens=16384,
-                extra_body={"chat_template_kwargs": {"thinking": True, "reasoning_effort": "high"}},
-                stream=True
-            )
+            kwargs = {
+                "model": model_name,
+                "messages": messages,
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "max_tokens": 16384,
+                "stream": True
+            }
+            if "glm" not in model_name.lower():
+                kwargs["extra_body"] = extra_body
+
+            completion = client.chat.completions.create(**kwargs)
 
             accumulated_content = []
             for chunk in completion:
-                if not getattr(chunk, "choices", None):
+                if not getattr(chunk, "choices", None) or len(chunk.choices) == 0:
                     continue
+                delta = chunk.choices[0].delta
+                if delta is None:
+                    continue
+
                 # Extract and print reasoning chunk
                 reasoning = (
-                    getattr(chunk.choices[0].delta, "reasoning", None)
-                    or getattr(chunk.choices[0].delta, "reasoning_content", None)
+                    getattr(delta, "reasoning", None)
+                    or getattr(delta, "reasoning_content", None)
                 )
                 if reasoning:
                     print(reasoning, end="", flush=True)
                 
                 # Extract and accumulate code content chunk
-                if chunk.choices and chunk.choices[0].delta.content is not None:
-                    content_piece = chunk.choices[0].delta.content
+                if getattr(delta, "content", None) is not None:
+                    content_piece = delta.content
                     print(content_piece, end="", flush=True)
                     accumulated_content.append(content_piece)
 
             return "".join(accumulated_content)
-        except Exception as e:
-            logger.error(f"Nvidia API call failed: {e}")
+        except Exception:
+            logger.exception("Nvidia API call failed")
             raise
 
 

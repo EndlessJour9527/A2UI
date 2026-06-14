@@ -184,6 +184,7 @@ class StudioRunSummary:
     catalog_profile_id: str | None = None
     latest_error: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    history: list[dict[str, Any]] = field(default_factory=list)
 
 
 class StudioAnnotationType(str, Enum):

@@ -55,7 +55,7 @@ function buildExecutionProvider(model: string): string {
   if (model === 'mock' || model === 'static') return model;
   if (model.startsWith('local-openai:') || model.startsWith('nvidia:') || model.startsWith('llm:')) return model;
   if (model.startsWith('proxy_')) return `local-openai:${model}`;
-  if (model.startsWith('nvidia/') || model.startsWith('deepseek')) return `nvidia:${model}`;
+  if (model.startsWith('nvidia/') || model.startsWith('deepseek') || model.startsWith('z-ai/') || model.includes('glm')) return `nvidia:${model}`;
   return `llm:${model}`;
 }
 

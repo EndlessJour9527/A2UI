@@ -185,11 +185,19 @@ export async function POST(request: NextRequest) {
       console.warn('Could not update status to preparing:', err);
     }
 
-    // Open execution.log in the run directory for stdout/stderr redirection
+    // Create executions/<executionId> folder
+    const executionDir = path.join(runDir, 'executions', executionId);
+    try {
+      await fs.mkdir(executionDir, {recursive: true});
+    } catch (err) {
+      console.warn('[Runs Execute] Could not create execution directory:', err);
+    }
+
+    // Open execution.log in the execution directory for stdout/stderr redirection
     let logFile: any = null;
     let logFd: any = 'ignore';
     try {
-      const logPath = path.join(runDir, 'execution.log');
+      const logPath = path.join(executionDir, 'execution.log');
       logFile = await fs.open(logPath, 'w');
       logFd = logFile.fd;
     } catch (err) {
@@ -224,19 +232,20 @@ export async function POST(request: NextRequest) {
       try {
         const pidPath = path.join(runDir, 'pid.txt');
         await fs.writeFile(pidPath, child.pid.toString());
-        await fs.writeFile(
-          executionPath,
-          JSON.stringify(
-            {
-              executionId,
-              pid: child.pid,
-              provider,
-              startedAt: new Date().toISOString(),
-            },
-            null,
-            2,
-          ),
-        );
+        
+        const payload = {
+          executionId,
+          pid: child.pid,
+          provider,
+          startedAt: new Date().toISOString(),
+        };
+
+        // Write execution.json to the versioned folder
+        const versionedExecutionPath = path.join(executionDir, 'execution.json');
+        await fs.writeFile(versionedExecutionPath, JSON.stringify(payload, null, 2));
+
+        // Write execution.json to the run root for compatibility
+        await fs.writeFile(executionPath, JSON.stringify(payload, null, 2));
       } catch (pidErr) {
         console.warn('[Runs Execute] Could not write execution metadata:', pidErr);
       }
@@ -254,6 +263,16 @@ export async function POST(request: NextRequest) {
         await fs.writeFile(summaryPath, JSON.stringify(summaryData, null, 2));
       } catch (logErr) {
         console.error('[Runs Execute] Failed to log spawn error:', logErr);
+      }
+    });
+
+    child.on('close', async (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`[Runs Execute] Runner process exited with code ${code}`);
+        try {
+          const errMsg = `\n[Composer] Runner process exited with code ${code}\n`;
+          await fs.appendFile(path.join(executionDir, 'execution.log'), errMsg);
+        } catch {}
       }
     });
 

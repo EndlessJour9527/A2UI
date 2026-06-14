@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 import json
 import os
 from datetime import datetime, timezone
@@ -63,6 +64,19 @@ class StudioStorage:
 
     def run_dir(self, run_id: str) -> Path:
         return self.runs_dir / run_id
+
+    def execution_dir(self, run_id: str, execution_id: str) -> Path:
+        return self.run_dir(run_id) / "executions" / execution_id
+
+    def execution_case_dir(self, run_id: str, execution_id: str, group_id: str, case_id: str) -> Path:
+        return self.execution_dir(run_id, execution_id) / "groups" / group_id / "cases" / case_id
+
+    def get_latest_execution_id(self, run_id: str) -> str | None:
+        try:
+            summary = self.read_json(self.run_dir(run_id) / "summary.json")
+            return summary.get("metadata", {}).get("latest_execution_id")
+        except Exception:
+            return None
 
     def initialize_run(self, run_definition: StudioRunDefinition, run_plan: StudioRunPlan) -> Path:
         """Create the canonical directory structure for a run."""
@@ -173,34 +187,97 @@ class StudioStorage:
         execution_id = execution_id or f"exec-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
         started_at = datetime.now(timezone.utc)
 
-        for group in run_definition.groups:
-            for case in group.cases:
-                case_dir = self.case_dir(run_definition.run_id, group.group_id, case.case_id)
-                self.write_json(
-                    case_dir / "status.json",
-                    {
-                        "runId": run_definition.run_id,
-                        "groupId": group.group_id,
-                        "caseId": case.case_id,
-                        "status": "queued",
-                        "updatedAt": datetime.now(timezone.utc),
-                        "error": None,
-                        "metadata": {},
-                    },
-                )
-                for artifact_path in (
-                    case_dir / "result.json",
-                    case_dir / "raw" / "raw_completion.md",
-                    case_dir / "protocol" / "parsed.json",
-                    case_dir / "protocol" / "normalized.json",
-                    case_dir / "protocol" / "validation.json",
-                    case_dir / "protocol" / "semantic_eval.json",
-                    case_dir / "render" / "replay.json",
-                    case_dir / "artifacts" / "manifest.json",
-                    case_dir / "artifacts" / "timeline.json",
-                ):
-                    if artifact_path.exists():
-                        artifact_path.unlink()
+        summary_path = run_dir / "summary.json"
+        history = []
+        if summary_path.exists():
+            try:
+                existing_summary = self.read_json(summary_path)
+                history = existing_summary.get("history", [])
+                if not history:
+                    legacy_exec_id = None
+                    if existing_summary.get("metadata", {}).get("latest_execution_id"):
+                        candidate = existing_summary["metadata"]["latest_execution_id"]
+                        if candidate != execution_id:
+                            legacy_exec_id = candidate
+                    
+                    if not legacy_exec_id:
+                        exec_json_path = run_dir / "execution.json"
+                        if exec_json_path.exists():
+                            try:
+                                exec_meta = self.read_json(exec_json_path)
+                                candidate = exec_meta.get("executionId")
+                                if candidate and candidate != execution_id:
+                                    legacy_exec_id = candidate
+                            except Exception:
+                                pass
+
+                    if legacy_exec_id:
+                        legacy_provider = existing_summary.get("metadata", {}).get("completion_provider", "unknown")
+                        legacy_started_at = existing_summary.get("metadata", {}).get("latest_execution_started_at")
+                        
+                        legacy_model = existing_summary.get("model", "")
+                        if legacy_provider and ":" in legacy_provider:
+                            legacy_model = legacy_provider.split(":", 1)[1]
+                        elif legacy_provider in ("mock", "static"):
+                            legacy_model = legacy_provider
+
+                        history.append({
+                            "execution_id": legacy_exec_id,
+                            "version": "v1",
+                            "model": legacy_model,
+                            "provider": legacy_provider,
+                            "started_at": legacy_started_at or existing_summary.get("created_at"),
+                            "status": existing_summary.get("status", "completed"),
+                            "completed_cases": existing_summary.get("completed_cases", 0),
+                            "failed_cases": existing_summary.get("failed_cases", 0),
+                            "group_names": [g.group_id for g in run_definition.groups],
+                        })
+            except Exception:
+                pass
+
+        # Check if the execution_id already exists in history to prevent duplicates
+        existing_idx = -1
+        for i, entry in enumerate(history):
+            if entry.get("execution_id") == execution_id:
+                existing_idx = i
+                break
+
+        # Determine the model name for this execution
+        model_name = run_definition.model
+        if provider and ":" in provider:
+            model_name = provider.split(":", 1)[1]
+        elif provider in ("mock", "static"):
+            model_name = provider
+
+        print(
+            f"[StudioStorage] prepare_for_execution: run_id={run_definition.run_id}, "
+            f"execution_id={execution_id}, provider={provider}, parsed_model={model_name}",
+            flush=True,
+        )
+
+        if existing_idx >= 0:
+            # Update the existing entry's properties
+            history[existing_idx]["status"] = "preparing"
+            history[existing_idx]["completed_cases"] = 0
+            history[existing_idx]["failed_cases"] = 0
+            history[existing_idx]["started_at"] = started_at
+            history[existing_idx]["provider"] = provider
+            history[existing_idx]["model"] = model_name
+        else:
+            version_num = len(history) + 1
+            version_name = f"v{version_num}"
+            group_names = [g.group_id for g in run_definition.groups]
+            history.append({
+                "execution_id": execution_id,
+                "version": version_name,
+                "model": model_name,
+                "provider": provider,
+                "started_at": started_at,
+                "status": "preparing",
+                "completed_cases": 0,
+                "failed_cases": 0,
+                "group_names": group_names,
+            })
 
         run_definition.metadata = {
             **run_definition.metadata,
@@ -214,8 +291,42 @@ class StudioStorage:
             provider,
             started_at=started_at,
         )
+
+        for group in run_definition.groups:
+            for case in group.cases:
+                case_dir = self.execution_case_dir(run_definition.run_id, execution_id, group.group_id, case.case_id)
+                for leaf in (
+                    case_dir / "raw",
+                    case_dir / "protocol",
+                    case_dir / "render",
+                    case_dir / "device",
+                    case_dir / "artifacts",
+                ):
+                    leaf.mkdir(parents=True, exist_ok=True)
+
+                self.write_json(
+                    case_dir / "status.json",
+                    {
+                        "runId": run_definition.run_id,
+                        "groupId": group.group_id,
+                        "caseId": case.case_id,
+                        "status": "queued",
+                        "updatedAt": datetime.now(timezone.utc),
+                        "error": None,
+                        "metadata": {},
+                    },
+                )
+                self.write_json(case_dir / "artifacts" / "manifest.json", {"artifacts": {}})
+                self.write_json(case_dir / "artifacts" / "timeline.json", {"events": []})
+
         self.write_json(run_dir / "run.json", run_definition)
-        self.write_json(run_dir / "summary.json", self.build_summary(run_definition))
+        
+        summary = self.build_summary(run_definition)
+        summary.history = history
+        summary.status = StudioRunStatus.PREPARING
+        
+        self.write_json(summary_path, summary)
+
         self.append_event(
             StudioEvent(
                 event_type="run.execution_started",
@@ -234,11 +345,19 @@ class StudioStorage:
     def write_case_result(self, result: StudioCaseResult) -> None:
         """Persist normalized result artifacts and materialized status."""
 
-        case_dir = self.case_dir(result.run_id, result.group_id, result.case_id)
+        execution_id = self.get_latest_execution_id(result.run_id)
+        if execution_id:
+            case_dir = self.execution_case_dir(result.run_id, execution_id, result.group_id, result.case_id)
+        else:
+            case_dir = self.case_dir(result.run_id, result.group_id, result.case_id)
+            
         raw_dir = case_dir / "raw"
         protocol_dir = case_dir / "protocol"
         render_dir = case_dir / "render"
         artifacts_dir = case_dir / "artifacts"
+
+        for leaf in (raw_dir, protocol_dir, render_dir, artifacts_dir):
+            leaf.mkdir(parents=True, exist_ok=True)
 
         if result.raw_completion is not None:
             self.write_text(raw_dir / "raw_completion.md", result.raw_completion)
@@ -332,6 +451,17 @@ class StudioStorage:
         """Create an initial run summary for newly created runs."""
 
         total_cases = sum(len(group.cases) for group in run_definition.groups)
+
+        # Load existing history from disk if summary.json already exists
+        history = []
+        summary_path = self.run_dir(run_definition.run_id) / "summary.json"
+        if summary_path.exists():
+            try:
+                existing = self.read_json(summary_path)
+                history = existing.get("history", [])
+            except Exception:
+                pass
+
         return StudioRunSummary(
             run_id=run_definition.run_id,
             name=run_definition.name,
@@ -352,6 +482,7 @@ class StudioStorage:
             spec_version=run_definition.spec_version,
             catalog_profile_id=run_definition.catalog_profile_id,
             metadata=run_definition.metadata,
+            history=history,
         )
 
     def update_run_summary(self, summary: StudioRunSummary) -> None:
@@ -360,14 +491,19 @@ class StudioStorage:
         self.write_json(self.run_dir(summary.run_id) / "summary.json", summary)
         self.rebuild_indexes()
 
-    def summarize_case_statuses(self, run_id: str) -> tuple[int, int, dict[str, int]]:
+    def summarize_case_statuses(self, run_id: str, execution_id: str | None = None) -> tuple[int, int, dict[str, int]]:
         """Recompute run case counts from persisted case statuses."""
 
         status_counts: dict[str, int] = {}
         completed_cases = 0
         failed_cases = 0
 
-        for status_path in sorted(self.run_dir(run_id).glob("groups/*/cases/*/status.json")):
+        if execution_id:
+            status_glob = f"executions/{execution_id}/groups/*/cases/*/status.json"
+        else:
+            status_glob = "groups/*/cases/*/status.json"
+
+        for status_path in sorted(self.run_dir(run_id).glob(status_glob)):
             status_data = self.read_json(status_path)
             status = status_data.get("status")
             if not status:
@@ -396,13 +532,23 @@ class StudioStorage:
     ) -> StudioRunSummary:
         """Persist summary counts recomputed from materialized case statuses."""
 
-        completed_cases, failed_cases, _ = self.summarize_case_statuses(summary.run_id)
+        latest_execution_id = summary.metadata.get("latest_execution_id")
+        completed_cases, failed_cases, _ = self.summarize_case_statuses(summary.run_id, latest_execution_id)
         summary.completed_cases = completed_cases
         summary.failed_cases = failed_cases
         if status is not None:
             summary.status = status
         if latest_error is not None:
             summary.latest_error = latest_error
+
+        if latest_execution_id and hasattr(summary, "history") and summary.history:
+            for entry in summary.history:
+                if entry.get("execution_id") == latest_execution_id:
+                    entry["completed_cases"] = completed_cases
+                    entry["failed_cases"] = failed_cases
+                    entry["status"] = summary.status.value if isinstance(summary.status, Enum) else summary.status
+                    break
+
         self.update_run_summary(summary)
         return summary
 
@@ -417,8 +563,15 @@ class StudioStorage:
     ) -> None:
         """Persist a lightweight case status update for in-flight WebUI polling."""
 
+        execution_id = self.get_latest_execution_id(run_id)
+        if execution_id:
+            case_dir = self.execution_case_dir(run_id, execution_id, group_id, case_id)
+        else:
+            case_dir = self.case_dir(run_id, group_id, case_id)
+
+        case_dir.mkdir(parents=True, exist_ok=True)
         self.write_json(
-            self.case_dir(run_id, group_id, case_id) / "status.json",
+            case_dir / "status.json",
             {
                 "runId": run_id,
                 "groupId": group_id,
@@ -443,9 +596,10 @@ class StudioStorage:
             summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
             run_dir = summary_path.parent
             run_id = run_dir.name
+            latest_execution_id = summary_data.get("metadata", {}).get("latest_execution_id")
 
             # Recompute actual counts from materialized case statuses on disk
-            completed_cases, failed_cases, _ = self.summarize_case_statuses(run_id)
+            completed_cases, failed_cases, _ = self.summarize_case_statuses(run_id, latest_execution_id)
 
             active_statuses = {
                 StudioRunStatus.QUEUED.value,
@@ -502,10 +656,21 @@ class StudioStorage:
 
                 for case_path in sorted(group_path.parent.glob("cases/*/case.json")):
                     case_data = json.loads(case_path.read_text(encoding="utf-8"))
-                    status_path = case_path.parent / "status.json"
+                    case_id = case_data["case_id"]
                     status = None
+                    
+                    status_path = None
+                    if latest_execution_id:
+                        status_path = run_dir / "executions" / latest_execution_id / "groups" / group_id / "cases" / case_id / "status.json"
+                    
+                    if not status_path or not status_path.exists():
+                        status_path = case_path.parent / "status.json"
+                        
                     if status_path.exists():
-                        status = json.loads(status_path.read_text(encoding="utf-8")).get("status")
+                        try:
+                            status = json.loads(status_path.read_text(encoding="utf-8")).get("status")
+                        except Exception:
+                            pass
                     
                     annotations_path = case_path.parent / "annotations.json"
                     annotation_count = 0

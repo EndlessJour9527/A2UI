@@ -81,7 +81,7 @@ export async function GET() {
       name: 'Nvidia API',
       models: [
         'deepseek-ai/deepseek-v4-flash',
-        'nvidia/llama-3.1-nemotron-70b-instruct',
+        'nvidia/nemotron-3-super-120b-a12b',
         'z-ai/glm-5.1'
       ]
     }

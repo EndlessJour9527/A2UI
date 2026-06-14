@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const runId = searchParams.get('runId');
   const groupId = searchParams.get('groupId');
   const caseId = searchParams.get('caseId');
+  const executionId = searchParams.get('executionId');
 
   if (!runId || !groupId || !caseId) {
     return NextResponse.json(
@@ -27,9 +28,9 @@ export async function GET(request: NextRequest) {
   }
 
   const safeRegex = /^[a-zA-Z0-9_.-]+$/;
-  if (!safeRegex.test(runId) || !safeRegex.test(groupId) || !safeRegex.test(caseId)) {
+  if (!safeRegex.test(runId) || !safeRegex.test(groupId) || !safeRegex.test(caseId) || (executionId && !safeRegex.test(executionId))) {
     return NextResponse.json(
-      {error: 'Invalid runId, groupId, or caseId format'},
+      {error: 'Invalid runId, groupId, caseId, or executionId format'},
       {status: 400},
     );
   }
@@ -43,18 +44,42 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let targetCaseDir = caseDir;
+  if (executionId) {
+    targetCaseDir = path.resolve(STUDIO_ROOT, 'runs', runId, 'executions', executionId, 'groups', groupId, 'cases', caseId);
+    const relativeTarget = path.relative(STUDIO_ROOT, targetCaseDir);
+    if (relativeTarget.startsWith('..') || path.isAbsolute(relativeTarget)) {
+      return NextResponse.json(
+        {error: 'Access denied: path traversal detected'},
+        {status: 403},
+      );
+    }
+  }
+
   const caseRecord = await readJson(path.join(caseDir, 'case.json'), {});
-  const status = await readJson(path.join(caseDir, 'status.json'), {
+
+  async function readWithFallback<T>(fileName: string, fallback: T): Promise<T> {
+    if (executionId) {
+      const targetPath = path.join(targetCaseDir, fileName);
+      try {
+        await fs.access(targetPath);
+        return await readJson(targetPath, fallback);
+      } catch {}
+    }
+    return await readJson(path.join(caseDir, fileName), fallback);
+  }
+
+  const status = await readWithFallback('status.json', {
     runId,
     groupId,
     caseId,
     status: 'queued',
   });
-  const result = await readJson(path.join(caseDir, 'result.json'), null);
-  const manifest = await readJson(path.join(caseDir, 'artifacts', 'manifest.json'), {artifacts: {}});
-  const protocol = await readJson(path.join(caseDir, 'protocol.json'), null);
-  const catalog = await readJson(path.join(caseDir, 'catalog.json'), null);
-  const timeline = await readJson(path.join(caseDir, 'artifacts', 'timeline.json'), {events: []});
+  const result = await readWithFallback('result.json', null);
+  const manifest = await readWithFallback(path.join('artifacts', 'manifest.json'), {artifacts: {}});
+  const protocol = await readWithFallback('protocol.json', null);
+  const catalog = await readWithFallback('catalog.json', null);
+  const timeline = await readWithFallback(path.join('artifacts', 'timeline.json'), {events: []});
 
   return NextResponse.json({
     caseRecord,

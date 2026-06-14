@@ -163,6 +163,7 @@ Eval Studio should evolve into a coherent local-first system that provides:
 | **Run** | A single evaluation execution session initiated by the user |
 | **Group** | A first-class test-set grouping used for selection, batching, filtering, and comparison |
 | **Case** | A single test sample within a group |
+| **Execution History / Version** | A record of a specific execution run. Each execution is versioned (e.g. `v1`, `v2`) and preserves the complete set of results, logs, and metadata for all cases executed. |
 | **Attempt** | One execution instance of a case under a chosen model / renderer / repeat count |
 | **Artifact** | Any persisted output or evidence generated during evaluation |
 | **GenUI Protocol** | A concrete UI generation protocol such as A2UI or OpenUI |
@@ -344,21 +345,30 @@ Eval Studio uses the local filesystem as the single source of persisted truth.
       groups/
         <group-id>/
           group.json
-          summary.json
           cases/
             <case-id>/
               case.json
-              status.json
               annotations.json
-              protocol.json
-              catalog.json
-              raw/
-              protocol/
-              render/
-              device/
-              artifacts/
-                manifest.json
-                timeline.json
+      executions/
+        <execution-id>/
+          summary.json
+          execution.json
+          execution.log
+          groups/
+            <group-id>/
+              cases/
+                <case-id>/
+                  status.json
+                  result.json
+                  protocol.json
+                  catalog.json
+                  raw/
+                  protocol/
+                  render/
+                  device/
+                  artifacts/
+                    manifest.json
+                    timeline.json
   indexes/
     runs.json
     groups.json
@@ -367,13 +377,15 @@ Eval Studio uses the local filesystem as the single source of persisted truth.
 
 ### Storage rules
 
-1. `events.jsonl` is the append-only execution history for a run.
-2. `summary.json` and `indexes/*.json` are materialized views for fast loading.
-3. `manifest.json` is the semantic lookup layer for artifacts.
-4. raw protocol outputs and normalized protocol outputs must both be persisted where available.
-5. device evidence is optional in MVP but its directory and contract are reserved now.
-6. every run and case must persist the resolved protocol identity, protocol profile, protocol version, adapter version, and provenance used during evaluation.
-7. protocol-specific files must stay under `protocol/`; protocol-neutral raw completions must stay under `raw/`; Studio-normalized summaries must stay in `result.json`, `status.json`, indexes, and manifests.
+1. `events.jsonl` is the append-only event history for a run.
+2. `summary.json` (at run level) and `indexes/*.json` are materialized views for fast loading. Run-level `summary.json` also maintains a `history` list of all previous executions.
+3. `executions/<execution-id>/` stores all execution-specific logs (`execution.log`), execution summaries (`summary.json`), metadata (`execution.json`), and case results.
+4. `manifest.json` is the semantic lookup layer for artifacts.
+5. raw protocol outputs and normalized protocol outputs must both be persisted where available.
+6. device evidence is optional in MVP but its directory and contract are reserved now.
+7. every run and case must persist the resolved protocol identity, protocol profile, protocol version, adapter version, and provenance used during evaluation.
+8. protocol-specific files must stay under `protocol/`; protocol-neutral raw completions must stay under `raw/`; Studio-normalized summaries must stay in `result.json`, `status.json`, indexes, and manifests.
+9. To ensure backward compatibility, if an `executionId` is absent (legacy runs), the API falls back to reading case results from the legacy directory `groups/<group-id>/cases/<case-id>/`.
 
 ## Multi-Protocol Architecture
 

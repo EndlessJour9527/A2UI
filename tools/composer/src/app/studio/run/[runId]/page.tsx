@@ -40,6 +40,39 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   const runGroups = useMemo(() => groups.filter(group => group.runId === runId), [groups, runId]);
   const runCases = useMemo(() => cases.filter(item => item.runId === runId), [cases, runId]);
 
+  const runHistory = useMemo(() => {
+    if (!run) return [];
+    const rawHistory = run.history && run.history.length > 0
+      ? run.history
+      : run.metadata?.latest_execution_id
+        ? [{
+            execution_id: run.metadata.latest_execution_id as string,
+            version: 'v1',
+            model: (() => {
+              const provider = run.metadata?.completion_provider as string;
+              if (!provider) return run.model;
+              const parsed = parseProviderValue(provider, run.model);
+              return parsed.model || parsed.mode;
+            })(),
+            provider: (run.metadata.completion_provider as string) || 'unknown',
+            started_at: (run.metadata.latest_execution_started_at as string) || run.created_at,
+            status: run.status,
+            completed_cases: run.completed_cases,
+            failed_cases: run.failed_cases,
+            group_names: runGroups.map(g => g.groupId),
+          }]
+        : [];
+
+    // Deduplicate history entries by execution_id to be extremely robust against duplicate key errors
+    const seen = new Set<string>();
+    return rawHistory.filter(entry => {
+      if (!entry.execution_id) return true;
+      if (seen.has(entry.execution_id)) return false;
+      seen.add(entry.execution_id);
+      return true;
+    });
+  }, [run, runGroups]);
+
   // Execution states
   const [isRunning, setIsRunning] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
@@ -51,8 +84,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   const [validationErrors, setValidationErrors] = useState<string[] | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [executionLog, setExecutionLog] = useState<string | null>(null);
-  const [isLogPanelCollapsed, setIsLogPanelCollapsed] = useState(false);
+  const [isLogPanelCollapsed, setIsLogPanelCollapsed] = useState(true);
   const submittedProviderRef = useRef<string | null>(null);
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
+  const [historyCaseStatuses, setHistoryCaseStatuses] = useState<Record<string, string>>({});
 
   // Collapsible groups state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -78,9 +113,21 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   // Initialize count states when run loads
   useEffect(() => {
     if (run) {
-      setCompletedCount(run.completed_cases);
-      setFailedCount(run.failed_cases);
-      setCurrentStatus(run.status);
+      if (!selectedExecutionId && run.metadata?.latest_execution_id) {
+        setSelectedExecutionId(run.metadata.latest_execution_id as string);
+      }
+
+      const historyEntry = runHistory.find(entry => entry.execution_id === selectedExecutionId);
+
+      if (historyEntry) {
+        setCompletedCount(historyEntry.completed_cases);
+        setFailedCount(historyEntry.failed_cases);
+        setCurrentStatus(historyEntry.status);
+      } else {
+        setCompletedCount(run.completed_cases);
+        setFailedCount(run.failed_cases);
+        setCurrentStatus(run.status);
+      }
       
       const providerSelection = parseProviderValue(
         submittedProviderRef.current ?? (run.metadata?.completion_provider as string | undefined) ?? run.model,
@@ -99,21 +146,52 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         setExecutionError(null);
       }
     }
-  }, [run]);
+  }, [run, runHistory, selectedExecutionId]);
 
   // Load status once on mount or when runId changes to capture execution logs & initial error state
   useEffect(() => {
     let active = true;
     async function loadInitialStatus() {
       try {
-        const res = await fetch(`/api/studio/runs/${runId}/status`);
+        const url = selectedExecutionId 
+          ? `/api/studio/runs/${runId}/status?executionId=${selectedExecutionId}` 
+          : `/api/studio/runs/${runId}/status`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         if (!active) return;
         setExecutionLog(typeof data.executionLog === 'string' ? data.executionLog : null);
+
+        const latestExecutionId = data.summary.metadata?.latest_execution_id;
+        const historyEntry = data.summary.history?.find((e: any) => e.execution_id === (selectedExecutionId || latestExecutionId));
+
         if (data.summary.status === 'error_infrastructure' || data.summary.latest_error) {
           setExecutionError(data.summary.latest_error || 'An infrastructure or configuration error occurred.');
+        } else {
+          setExecutionError(null);
         }
+
+        // Parse recent events to identify case statuses for the selected execution
+        const startIdx = data.latestExecutionStartIndex ?? 0;
+        let endIdx = (data.recentEvents ?? []).length;
+        for (let i = startIdx + 1; i < (data.recentEvents ?? []).length; i++) {
+          if (data.recentEvents[i].event_type === 'run.execution_started') {
+            endIdx = i;
+            break;
+          }
+        }
+        const executionEvents = (data.recentEvents ?? []).slice(startIdx, endIdx);
+
+        const caseStatuses: Record<string, string> = {};
+        executionEvents.forEach((e: any) => {
+          if (e.event_type === 'case.started' && e.payload?.caseId) {
+            caseStatuses[e.payload.caseId] = 'running_protocol';
+          }
+          if (e.event_type === 'case.completed' && e.payload?.caseId) {
+            caseStatuses[e.payload.caseId] = e.payload.status;
+          }
+        });
+        setHistoryCaseStatuses(caseStatuses);
       } catch (err) {
         console.error('Failed to load initial status:', err);
       }
@@ -122,7 +200,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
     return () => {
       active = false;
     };
-  }, [runId]);
+  }, [runId, selectedExecutionId]);
 
   // Polling loop for active runs
   useEffect(() => {
@@ -135,13 +213,19 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
 
     async function pollStatus() {
       try {
-        const res = await fetch(`/api/studio/runs/${runId}/status`);
+        const url = selectedExecutionId 
+          ? `/api/studio/runs/${runId}/status?executionId=${selectedExecutionId}` 
+          : `/api/studio/runs/${runId}/status`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
         if (!active) return;
 
+        const latestExecutionId = data.summary.metadata?.latest_execution_id;
+        const historyEntry = data.summary.history?.find((e: any) => e.execution_id === (selectedExecutionId || latestExecutionId));
+
         setIsRunning(data.isRunning);
-        setCurrentStatus(data.summary.status);
+        setCurrentStatus(historyEntry ? historyEntry.status : data.summary.status);
         setExecutionLog(typeof data.executionLog === 'string' ? data.executionLog : null);
         if (data.summary.status === 'error_infrastructure' || data.summary.latest_error) {
           setExecutionError(data.summary.latest_error || 'An infrastructure or configuration error occurred.');
@@ -149,40 +233,49 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           setExecutionError(null);
         }
 
-        const latestExecutionStartIndex = typeof data.latestExecutionStartIndex === 'number'
-          ? data.latestExecutionStartIndex
-          : undefined;
-        const recentEvents = eventsForLatestExecution<any>(
-          data.recentEvents ?? [],
-          latestExecutionStartIndex,
-        );
+        const startIdx = data.latestExecutionStartIndex ?? 0;
+        let endIdx = (data.recentEvents ?? []).length;
+        for (let i = startIdx + 1; i < (data.recentEvents ?? []).length; i++) {
+          if (data.recentEvents[i].event_type === 'run.execution_started') {
+            endIdx = i;
+            break;
+          }
+        }
+        const executionEvents = (data.recentEvents ?? []).slice(startIdx, endIdx);
         
         // Count unique case completions to prevent duplicate counts from concurrent/rerun processes
         const caseStatuses: Record<string, string> = {};
-        recentEvents.forEach((e: any) => {
+        executionEvents.forEach((e: any) => {
+          if (e.event_type === 'case.started' && e.payload?.caseId) {
+            caseStatuses[e.payload.caseId] = 'running_protocol';
+          }
           if (e.event_type === 'case.completed' && e.payload?.caseId) {
             caseStatuses[e.payload.caseId] = e.payload.status;
           }
         });
+        setHistoryCaseStatuses(caseStatuses);
         
-        const eventCompletedCount = Object.keys(caseStatuses).length;
+        const eventCompletedCount = Object.keys(caseStatuses).filter(id => caseStatuses[id] === 'completed').length;
         const eventFailedCount = Object.values(caseStatuses).filter(
-          status => status !== 'completed'
+          status => status !== 'completed' && status !== 'running_protocol' && status !== 'queued'
         ).length;
 
+        const baseCompleted = historyEntry ? historyEntry.completed_cases : data.summary.completed_cases;
+        const baseFailed = historyEntry ? historyEntry.failed_cases : data.summary.failed_cases;
+
         if (data.isRunning) {
-          setCompletedCount(Math.max(data.summary.completed_cases, eventCompletedCount));
-          setFailedCount(Math.max(data.summary.failed_cases, eventFailedCount));
+          setCompletedCount(Math.max(baseCompleted, eventCompletedCount));
+          setFailedCount(Math.max(baseFailed, eventFailedCount));
         } else {
-          setCompletedCount(data.summary.completed_cases);
-          setFailedCount(data.summary.failed_cases);
+          setCompletedCount(baseCompleted);
+          setFailedCount(baseFailed);
         }
 
         // Parse recent events to identify active case
-        const caseStartedEvents = recentEvents.filter(
+        const caseStartedEvents = executionEvents.filter(
           (e: any) => e.event_type === 'case.started'
         );
-        const caseCompletedEvents = recentEvents.filter(
+        const caseCompletedEvents = executionEvents.filter(
           (e: any) => e.event_type === 'case.completed'
         );
 
@@ -214,7 +307,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       active = false;
       if (timerId) clearTimeout(timerId);
     };
-  }, [runId, isRunning, run, refreshStudioIndex]);
+  }, [runId, isRunning, run, selectedExecutionId, refreshStudioIndex]);
 
   const startExecution = async () => {
     const provider = buildProviderValue(providerMode, providerModel);
@@ -223,11 +316,15 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       return;
     }
     const providerSelection = parseProviderValue(provider, providerModel);
+    console.log(
+      `[StudioRunPage] startExecution: provider="${provider}", mode="${providerSelection.mode}", model="${providerSelection.model}"`
+    );
 
     try {
       submittedProviderRef.current = provider;
       setProviderMode(providerSelection.mode);
       setProviderModel(providerSelection.model);
+      setSelectedExecutionId(null);
       setValidationErrors(null);
       setExecutionError(null);
       setExecutionLog(null);
@@ -315,16 +412,42 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                {isRunning ? (
-                  <span className="flex items-center gap-2 text-primary">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Executing Evaluation Run
-                  </span>
-                ) : (
-                  'Run Controls'
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  {isRunning ? (
+                    <span className="flex items-center gap-2 text-primary">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      Executing Evaluation Run
+                    </span>
+                  ) : (
+                    'Run Controls'
+                  )}
+                </h2>
+
+                {runHistory && runHistory.length > 0 && (
+                  <div className="flex items-center gap-1.5 ml-2">
+                    <span className="text-xs font-medium text-muted-foreground">Version:</span>
+                    <select
+                      value={selectedExecutionId || ''}
+                      onChange={e => {
+                        setSelectedExecutionId(e.target.value || null);
+                      }}
+                      className="rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {runHistory.map((entry, index) => {
+                        const groupStr = entry.group_names && entry.group_names.length > 0
+                          ? ` - ${entry.group_names.join(', ')}`
+                          : '';
+                        return (
+                          <option key={`${entry.execution_id}-${index}`} value={entry.execution_id}>
+                            {`${entry.version} (${entry.model}${groupStr})`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
                 )}
-              </h2>
+              </div>
               <p className="text-sm text-muted-foreground">
                 {isRunning
                   ? currentCaseId
@@ -531,10 +654,13 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                   {isExpanded && (
                     <div className="border-t border-border/30 bg-background/25 divide-y divide-border/20">
                       {groupCases.map(caseItem => {
+                        const resolvedStatus = selectedExecutionId && historyCaseStatuses[caseItem.caseId] !== undefined
+                          ? historyCaseStatuses[caseItem.caseId]
+                          : caseItem.status;
                         let statusColor = 'bg-secondary text-muted-foreground border-border/40';
-                        if (caseItem.status === 'completed') {
+                        if (resolvedStatus === 'completed') {
                           statusColor = 'bg-emerald-50 text-emerald-700 border-emerald-500/20';
-                        } else if (caseItem.status && caseItem.status.startsWith('failed')) {
+                        } else if (resolvedStatus && resolvedStatus.startsWith('failed')) {
                           statusColor = 'bg-rose-50 text-rose-700 border-rose-500/20';
                         }
                         
@@ -568,13 +694,13 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                               
                               {/* Status Badge */}
                               <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider ${statusColor}`}>
-                                {caseItem.status?.replace(/_/g, ' ') || 'queued'}
+                                {resolvedStatus?.replace(/_/g, ' ') || 'queued'}
                               </span>
                               
                               {/* Link Button */}
                               <Button variant="ghost" size="sm" asChild className="rounded-xl h-8 px-3">
                                 <Link
-                                  href={`/studio/run/${runId}/group/${group.groupId}/case/${caseItem.caseId}`}
+                                  href={`/studio/run/${runId}/group/${group.groupId}/case/${caseItem.caseId}${selectedExecutionId ? `?executionId=${selectedExecutionId}` : ''}`}
                                   className="inline-flex items-center gap-1.5 text-xs text-primary"
                                 >
                                   Review
@@ -754,7 +880,7 @@ function inferProviderMode(model: string): CompletionProviderMode {
   if (model === 'mock') return 'mock';
   if (model === 'static') return 'static';
   if (model.startsWith('local-openai:') || model.includes('local-openai') || model.startsWith('proxy_')) return 'local-openai';
-  if (model.startsWith('nvidia:') || model.includes('nvidia') || model.startsWith('deepseek')) return 'nvidia';
+  if (model.startsWith('nvidia:') || model.includes('nvidia') || model.startsWith('deepseek') || model.startsWith('z-ai/') || model.includes('glm')) return 'nvidia';
   if (model.startsWith('google/') || model.includes('gemini')) return 'llm';
   return 'llm';
 }

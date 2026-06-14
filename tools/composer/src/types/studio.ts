@@ -51,6 +51,19 @@ export interface StudioRunIndexEntry {
   catalog_profile_id?: string | null;
   latest_error?: string | null;
   metadata?: Record<string, unknown>;
+  history?: StudioRunHistoryEntry[];
+}
+
+export interface StudioRunHistoryEntry {
+  execution_id: string;
+  version: string;
+  model: string;
+  provider: string;
+  started_at: string;
+  status: StudioRunStatus;
+  completed_cases: number;
+  failed_cases: number;
+  group_names?: string[];
 }
 
 export interface StudioGroupIndexEntry {

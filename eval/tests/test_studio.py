@@ -202,6 +202,9 @@ def test_prepare_for_execution_records_execution_started_event(tmp_path: Path):
     assert events[-1]["event_type"] == "run.execution_started"
     assert events[-1]["payload"]["executionId"] == "exec-test-123"
     assert events[-1]["payload"]["completionProvider"] == "nvidia:deepseek-ai/deepseek-v4-flash"
+    assert len(summary["history"]) == 1
+    assert summary["history"][0]["model"] == "deepseek-ai/deepseek-v4-flash"
+    assert summary["history"][0]["provider"] == "nvidia:deepseek-ai/deepseek-v4-flash"
 
 
 def test_persisted_execution_does_not_append_created_event(tmp_path: Path):

@@ -12,6 +12,7 @@ dist
 # MkDocs build output
 site/
 .genui-eval-studio
+.antigravity-tasks
 # Python virtual environment
 .venv/
 coverage/

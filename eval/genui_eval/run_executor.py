@@ -356,6 +356,17 @@ def main() -> None:
         
         # Load persisted run definition
         run_def = load_run_definition(orchestrator.storage, args.run_id)
+
+        # Parse and log model name
+        base_provider = args.provider
+        model_name = run_def.model
+        if ":" in args.provider:
+            parts = args.provider.split(":", 1)
+            base_provider = parts[0]
+            model_name = parts[1]
+        elif args.provider in ("mock", "static"):
+            model_name = args.provider
+        logger.info(f"[RunExecutor] Parsed execution model: '{model_name}' (provider: '{base_provider}')")
         if args.validate_only:
             logger.info("Running validation checks only")
             try:

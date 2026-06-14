@@ -82,6 +82,11 @@ export async function GET(
       return NextResponse.json({error: 'Run summary not found or corrupted'}, {status: 404});
     }
 
+    const {searchParams} = request.nextUrl;
+    const executionId = searchParams.get('executionId');
+    const latestExecutionId = summary.metadata?.latest_execution_id;
+    const targetExecutionId = executionId || latestExecutionId;
+
     // Read events.jsonl
     const eventsPath = path.join(runDir, 'events.jsonl');
     const recentEvents: any[] = [];
@@ -99,7 +104,16 @@ export async function GET(
           }
         }
       }
-      const boundaryIndex = findLatestExecutionStartIndex(recentEvents);
+      let boundaryIndex: number | undefined = undefined;
+      if (targetExecutionId) {
+        boundaryIndex = recentEvents
+          .map((e, i) => ({e, i}))
+          .find(item => item.e.event_type === 'run.execution_started' && item.e.payload?.executionId === targetExecutionId)
+          ?.i;
+      }
+      if (boundaryIndex === undefined) {
+        boundaryIndex = findLatestExecutionStartIndex(recentEvents);
+      }
       if (boundaryIndex !== undefined) {
         latestExecutionStartIndex = boundaryIndex;
       }
@@ -107,12 +121,20 @@ export async function GET(
       // It is fine if events.jsonl does not exist yet or is empty
     }
 
-    const executionPath = path.join(runDir, 'execution.json');
+    let executionPath = path.join(runDir, 'execution.json');
+    if (targetExecutionId) {
+      const versionedPath = path.join(runDir, 'executions', targetExecutionId, 'execution.json');
+      try {
+        await fs.access(versionedPath);
+        executionPath = versionedPath;
+      } catch {}
+    }
+
     const executionMeta = await readJson<any>(executionPath, null);
-    const latestExecutionId = summary.metadata?.latest_execution_id;
     const executionMatchesLatest = !latestExecutionId || !executionMeta?.executionId || executionMeta.executionId === latestExecutionId;
 
-    let isRunning = RUNNING_STATUSES.has(summary.status);
+    const isTargetLatest = !executionId || executionId === latestExecutionId;
+    let isRunning = isTargetLatest && RUNNING_STATUSES.has(summary.status);
     if (isRunning) {
       try {
         const pid = executionMeta?.pid ?? await readLegacyPid(runDir);
@@ -125,7 +147,14 @@ export async function GET(
               isRunning = false;
 
               // Read execution.log if present to capture error
-              const logPath = path.join(runDir, 'execution.log');
+              let logPath = path.join(runDir, 'execution.log');
+              if (targetExecutionId) {
+                const versionedLogPath = path.join(runDir, 'executions', targetExecutionId, 'execution.log');
+                try {
+                  await fs.access(versionedLogPath);
+                  logPath = versionedLogPath;
+                } catch {}
+              }
               let logContent = '';
               try {
                 logContent = await fs.readFile(logPath, 'utf8');
@@ -169,7 +198,14 @@ export async function GET(
     }
 
     // Read execution.log if present to capture any stdout/stderr errors (e.g. env issues, launch failures)
-    const logPath = path.join(runDir, 'execution.log');
+    let logPath = path.join(runDir, 'execution.log');
+    if (targetExecutionId) {
+      const versionedLogPath = path.join(runDir, 'executions', targetExecutionId, 'execution.log');
+      try {
+        await fs.access(versionedLogPath);
+        logPath = versionedLogPath;
+      } catch {}
+    }
     let executionLog: string | null = null;
     try {
       executionLog = await fs.readFile(logPath, 'utf8');
