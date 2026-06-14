@@ -19,10 +19,46 @@ import {spawn, execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {randomUUID} from 'node:crypto';
 
 const execFileAsync = promisify(execFile);
 const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 const EVAL_ROOT = path.resolve(process.cwd(), '../../eval');
+const RUNNING_STATUSES = new Set([
+  'preparing',
+  'running_protocol',
+  'running_render',
+  'collecting_device',
+]);
+
+async function readJson<T>(filePath: string, fallback: T): Promise<T> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function isPidAlive(pid: unknown): boolean {
+  if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readLegacyPid(runDir: string): Promise<number | null> {
+  try {
+    const pid = parseInt((await fs.readFile(path.join(runDir, 'pid.txt'), 'utf8')).trim(), 10);
+    return Number.isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +82,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({error: 'Run not found'}, {status: 404});
     }
 
+    const summaryPath = path.join(runDir, 'summary.json');
+    const executionPath = path.join(runDir, 'execution.json');
+    const currentSummary = await readJson<any>(summaryPath, null);
+    const executionMeta = await readJson<any>(executionPath, null);
+    const latestExecutionId = currentSummary?.metadata?.latest_execution_id;
+    const executionMatchesLatest = !latestExecutionId || !executionMeta?.executionId || executionMeta.executionId === latestExecutionId;
+    const activePid = executionMeta?.pid ?? await readLegacyPid(runDir);
+
+    if (currentSummary && RUNNING_STATUSES.has(currentSummary.status) && executionMatchesLatest) {
+      if (isPidAlive(activePid)) {
+        return NextResponse.json(
+          {
+            error: 'Run execution is already in progress',
+            runId: safeRunId,
+            executionId: executionMeta?.executionId ?? latestExecutionId ?? null,
+            provider: executionMeta?.provider ?? currentSummary.metadata?.completion_provider ?? null,
+            status: currentSummary.status,
+          },
+          {status: 409},
+        );
+      }
+
+      currentSummary.status = 'error_infrastructure';
+      currentSummary.latest_error = 'Previous execution process is no longer running.';
+      currentSummary.metadata = {
+        ...(currentSummary.metadata ?? {}),
+        stale_execution_id: executionMeta?.executionId ?? latestExecutionId ?? null,
+      };
+      await fs.writeFile(summaryPath, JSON.stringify(currentSummary, null, 2));
+    }
+
+    const executionId = `exec-${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+
     // Perform pre-execution validation using --validate-only flag
     try {
       await execFileAsync('uv', [
@@ -56,7 +125,11 @@ export async function POST(request: NextRequest) {
         '-m',
         'genui_eval.run_executor',
         safeRunId,
-        '--validate-only'
+        '--validate-only',
+        '--provider',
+        provider,
+        '--execution-id',
+        executionId,
       ], {
         cwd: EVAL_ROOT,
         env: {
@@ -99,10 +172,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Update status to preparing in summary.json before spawning
-    const summaryPath = path.join(runDir, 'summary.json');
     try {
       const summaryData = JSON.parse(await fs.readFile(summaryPath, 'utf8'));
       summaryData.status = 'preparing';
+      summaryData.metadata = {
+        ...(summaryData.metadata ?? {}),
+        latest_execution_id: executionId,
+        completion_provider: provider,
+      };
       await fs.writeFile(summaryPath, JSON.stringify(summaryData, null, 2));
     } catch (err) {
       console.warn('Could not update status to preparing:', err);
@@ -129,7 +206,9 @@ export async function POST(request: NextRequest) {
       'genui_eval.run_executor',
       safeRunId,
       '--provider',
-      provider
+      provider,
+      '--execution-id',
+      executionId,
     ], {
       cwd: EVAL_ROOT,
       env: {
@@ -145,8 +224,21 @@ export async function POST(request: NextRequest) {
       try {
         const pidPath = path.join(runDir, 'pid.txt');
         await fs.writeFile(pidPath, child.pid.toString());
+        await fs.writeFile(
+          executionPath,
+          JSON.stringify(
+            {
+              executionId,
+              pid: child.pid,
+              provider,
+              startedAt: new Date().toISOString(),
+            },
+            null,
+            2,
+          ),
+        );
       } catch (pidErr) {
-        console.warn('[Runs Execute] Could not write pid.txt:', pidErr);
+        console.warn('[Runs Execute] Could not write execution metadata:', pidErr);
       }
     }
 
@@ -171,7 +263,7 @@ export async function POST(request: NextRequest) {
       await logFile.close().catch(() => {});
     }
 
-    return NextResponse.json({status: 'started', runId: safeRunId});
+    return NextResponse.json({status: 'started', runId: safeRunId, executionId});
   } catch (err: any) {
     console.error('[Runs Execute] API error:', err);
     return NextResponse.json(

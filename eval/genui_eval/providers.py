@@ -232,6 +232,7 @@ class NvidiaProvider(BaseProvider):
         return [
             "deepseek-ai/deepseek-v4-flash",
             "nvidia/llama-3.1-nemotron-70b-instruct",
+            "z-ai/glm-5.1",
         ]
 
     def call_api(self, model_name: str, prompt: str, system_prompt: str | None = None) -> str:

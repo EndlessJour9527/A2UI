@@ -1,0 +1,30 @@
+{
+  "command": [
+    "/Users/next/.local/bin/agy",
+    "--print",
+    "--add-dir",
+    "/Users/next/develop/ai-proj/A2UI",
+    "--log-file",
+    "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/agy.log",
+    "--print-timeout",
+    "3600s",
+    "Use the plan at /Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/plan.md and work in /Users/next/develop/ai-proj/A2UI. Do not ask follow-up questions. Do not produce a step-by-step exploration transcript. Read the plan, perform only the work required by that plan, and write a concise final execution report to /Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/result.md. If the task is unsafe or ambiguous, report that briefly and stop."
+  ],
+  "command_source": "PATH:agy",
+  "created_at": "2026-06-14T09:39:19.898450+00:00",
+  "cwd": "/Users/next/develop/ai-proj/A2UI",
+  "dry_run": false,
+  "error": "Antigravity command interrupted.",
+  "finished_at": "2026-06-14T09:40:59.257503+00:00",
+  "plan_file": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/plan.md",
+  "result_file": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/result.md",
+  "started_at": "2026-06-14T09:39:19.898895+00:00",
+  "state": "failed",
+  "stderr_log": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/stderr.log",
+  "stdout_log": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2/stdout.log",
+  "task_dir": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2",
+  "task_id": "20260614-173919-fix-eval-studio-rerun-concurrency-67adf4f2",
+  "task_title": "Fix Eval Studio rerun concurrency",
+  "timeout_seconds": 3600,
+  "updated_at": "2026-06-14T09:40:59.258100+00:00"
+}

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import sys
 import pytest
 
 from genui_eval.protocols.registry import ProtocolRegistry
@@ -28,7 +29,11 @@ from genui_eval.run_executor import (
 )
 from genui_eval.studio_orchestrator import StudioOrchestrator, create_run_definition
 from genui_eval.studio_storage import StudioStorage
-from genui_eval.studio_types import StudioCaseSelection, StudioGroupSelection, StudioExecutionMode
+from genui_eval.studio_types import (
+    StudioCaseSelection,
+    StudioGroupSelection,
+    StudioExecutionMode,
+)
 
 CATALOG_PATH = (
     Path(__file__).resolve().parents[2]
@@ -180,3 +185,146 @@ def test_call_openai_compatible_api_strips_proxy_prefix(monkeypatch):
 
     assert completion == "local proxy completion"
     assert captured["body"]["model"] == "gemini-3.5-flash-extra-low"
+
+
+def test_validate_only_does_not_prepare_execution(monkeypatch, tmp_path: Path):
+    studio_root = tmp_path / ".genui-eval-studio"
+    storage = StudioStorage(studio_root)
+    run_definition = create_run_definition(
+        run_id="run-validate-only",
+        name="Validate Only",
+        groups=[
+            StudioGroupSelection(
+                group_id="group-validate",
+                label="Group Validate",
+                cases=[
+                    StudioCaseSelection(
+                        case_id="case-validate",
+                        group_id="group-validate",
+                        prompt="Prompt",
+                    )
+                ],
+            )
+        ],
+        model="test-model",
+        grading_model="judge-model",
+        execution_mode=StudioExecutionMode.SERIAL,
+    )
+    run_definition.storage_root = studio_root
+
+    validate_calls: list[str] = []
+
+    class FakeOrchestrator:
+        def __init__(self, storage: StudioStorage):
+            self.storage = storage
+
+        def validate_compatibility(self, loaded_run_definition):
+            validate_calls.append(loaded_run_definition.run_id)
+
+    fake_orchestrator = FakeOrchestrator(storage)
+
+    monkeypatch.setattr(
+        "genui_eval.run_executor.StudioOrchestrator.for_repo",
+        lambda eval_root: fake_orchestrator,
+    )
+    monkeypatch.setattr(
+        "genui_eval.run_executor.load_run_definition",
+        lambda loaded_storage, run_id: run_definition,
+    )
+    monkeypatch.setattr(
+        storage,
+        "prepare_for_execution",
+        lambda *args, **kwargs: pytest.fail("prepare_for_execution should not run during validation"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_executor",
+            run_definition.run_id,
+            "--validate-only",
+            "--provider",
+            "nvidia:deepseek-ai/deepseek-v4-flash",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        from genui_eval import run_executor as run_executor_module
+
+        run_executor_module.main()
+
+    assert excinfo.value.code == 0
+    assert validate_calls == [run_definition.run_id]
+    assert "completion_provider" not in run_definition.metadata
+
+
+def test_execution_id_is_persisted_for_real_execution(monkeypatch):
+    run_definition = create_run_definition(
+        run_id="run-execution-id",
+        name="Execution Id",
+        groups=[
+            StudioGroupSelection(
+                group_id="group-execution",
+                label="Group Execution",
+                cases=[
+                    StudioCaseSelection(
+                        case_id="case-execution",
+                        group_id="group-execution",
+                        prompt="Prompt",
+                    )
+                ],
+            )
+        ],
+        model="test-model",
+        grading_model="judge-model",
+        execution_mode=StudioExecutionMode.SERIAL,
+    )
+    calls: dict[str, object] = {}
+
+    class FakeStorage:
+        def prepare_for_execution(self, loaded_run_definition, provider, execution_id=None):
+            calls["prepare"] = (loaded_run_definition.run_id, provider, execution_id)
+
+        def write_execution_metadata(self, run_id, execution_id, provider, *, pid=None, started_at=None):
+            calls["metadata"] = (run_id, execution_id, provider, pid)
+
+    class FakeOrchestrator:
+        def __init__(self):
+            self.storage = FakeStorage()
+
+        def run(self, loaded_run_definition, completion_provider, initialize_storage=True):
+            calls["run"] = (loaded_run_definition.run_id, initialize_storage)
+
+    fake_orchestrator = FakeOrchestrator()
+
+    monkeypatch.setattr(
+        "genui_eval.run_executor.StudioOrchestrator.for_repo",
+        lambda eval_root: fake_orchestrator,
+    )
+    monkeypatch.setattr(
+        "genui_eval.run_executor.load_run_definition",
+        lambda loaded_storage, run_id: run_definition,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_executor",
+            run_definition.run_id,
+            "--provider",
+            "nvidia:z-ai/glm-5.1",
+            "--execution-id",
+            "exec-cli-123",
+        ],
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        from genui_eval import run_executor as run_executor_module
+
+        run_executor_module.main()
+
+    assert excinfo.value.code == 0
+    assert calls["prepare"] == ("run-execution-id", "nvidia:z-ai/glm-5.1", "exec-cli-123")
+    assert calls["metadata"][:3] == ("run-execution-id", "exec-cli-123", "nvidia:z-ai/glm-5.1")
+    assert calls["run"] == ("run-execution-id", False)
+    assert run_definition.metadata["latest_execution_id"] == "exec-cli-123"

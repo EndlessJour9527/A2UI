@@ -1,0 +1,28 @@
+{
+  "add_dir": [],
+  "command": [
+    "/Users/next/.local/bin/agy",
+    "--print",
+    "--add-dir",
+    "/Users/next/develop/ai-proj/A2UI",
+    "--log-file",
+    "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/agy.log",
+    "--print-timeout",
+    "3600s",
+    "Use the plan at /Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/plan.md and work in /Users/next/develop/ai-proj/A2UI. Do not ask follow-up questions. Do not produce a step-by-step exploration transcript. Read the plan, perform only the work required by that plan, and write a concise final execution report to /Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/result.md. If the task is unsafe or ambiguous, report that briefly and stop."
+  ],
+  "command_source": "PATH:agy",
+  "created_at": "2026-06-14T09:47:36.366121+00:00",
+  "cwd": "/Users/next/develop/ai-proj/A2UI",
+  "dry_run": true,
+  "plan_file": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/plan.md",
+  "result_file": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/result.md",
+  "state": "queued",
+  "stderr_log": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/stderr.log",
+  "stdout_log": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305/stdout.log",
+  "task_dir": "/Users/next/develop/ai-proj/A2UI/.antigravity-tasks/20260614-174736-test-dry-run-ce92d305",
+  "task_id": "20260614-174736-test-dry-run-ce92d305",
+  "task_title": "Test Dry Run",
+  "timeout_seconds": 3600,
+  "updated_at": "2026-06-14T09:47:36.366668+00:00"
+}

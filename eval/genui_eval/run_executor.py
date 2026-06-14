@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -339,7 +340,13 @@ def main() -> None:
         action="store_true",
         help="Only run pre-execution compatibility checks and exit",
     )
+    parser.add_argument(
+        "--execution-id",
+        default=None,
+        help="Stable identifier for this execution attempt. Generated when omitted.",
+    )
     args = parser.parse_args()
+    execution_id = args.execution_id or f"exec-{uuid.uuid4().hex[:12]}"
 
     logger.info(f"Initializing run executor for run ID '{args.run_id}' using provider '{args.provider}'")
 
@@ -349,11 +356,6 @@ def main() -> None:
         
         # Load persisted run definition
         run_def = load_run_definition(orchestrator.storage, args.run_id)
-        run_def.metadata = {
-            **run_def.metadata,
-            "completion_provider": args.provider,
-        }
-        orchestrator.storage.prepare_for_execution(run_def, args.provider)
         if args.validate_only:
             logger.info("Running validation checks only")
             try:
@@ -366,12 +368,25 @@ def main() -> None:
                 print(json.dumps({"valid": False, "errors": pe.errors}), file=sys.stderr)
                 sys.exit(2)
 
+        run_def.metadata = {
+            **run_def.metadata,
+            "completion_provider": args.provider,
+            "latest_execution_id": execution_id,
+        }
+        orchestrator.storage.prepare_for_execution(run_def, args.provider, execution_id)
+        orchestrator.storage.write_execution_metadata(
+            run_def.run_id,
+            execution_id,
+            args.provider,
+            pid=os.getpid(),
+        )
+
         # Construct completion provider
         completion_provider = build_completion_provider(args.provider, run_def, orchestrator)
         
         # Execute run
         logger.info(f"Starting orchestration execution for run '{args.run_id}'")
-        orchestrator.run(run_def, completion_provider=completion_provider)
+        orchestrator.run(run_def, completion_provider=completion_provider, initialize_storage=False)
         
         logger.info(f"Orchestration execution completed successfully for run '{args.run_id}'")
         sys.exit(0)

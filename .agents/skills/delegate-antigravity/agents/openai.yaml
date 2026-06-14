@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delegate Antigravity"
+  short_description: "Dispatch planned work to Antigravity"
+  default_prompt: "Use $delegate-antigravity to dispatch this implementation plan to local Antigravity and report back for verification."

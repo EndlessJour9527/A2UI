@@ -126,6 +126,7 @@ class StudioOrchestrator:
         self,
         run_definition: StudioRunDefinition,
         completion_provider: CompletionProvider,
+        initialize_storage: bool = True,
     ) -> StudioRunPlan:
         """Execute a simple synchronous MVP run using a provided completion source."""
 
@@ -142,7 +143,11 @@ class StudioOrchestrator:
                 case.protocol_options = dict(config.protocol_options)
                 case.spec_version = config.protocol_version
 
-        plan = self.initialize_run(run_definition)
+        plan = (
+            self.initialize_run(run_definition)
+            if initialize_storage
+            else self.build_plan(run_definition)
+        )
         summary = self.storage.build_summary(run_definition)
         summary.status = StudioRunStatus.RUNNING_PROTOCOL
         self.storage.update_run_summary(summary)

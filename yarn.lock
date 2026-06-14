@@ -12894,6 +12894,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@yodaos-pkg/ink@npm:^0.12.3":
+  version: 0.12.3
+  resolution: "@yodaos-pkg/ink@npm:0.12.3"
+  checksum: 10c0/ad9560e93787b3728c105391f84023198eb304aa05ebc5fea668bb5b2ff7cf999408a73d24b78653d4052fce283a274adb8fb990787b4c3d971a9b198e04077f
+  languageName: node
+  linkType: hard
+
 "a2ui-over-mcp-recipe-98bdf9@workspace:samples/mcp/a2ui-over-mcp-recipe":
   version: 0.0.0-use.local
   resolution: "a2ui-over-mcp-recipe-98bdf9@workspace:samples/mcp/a2ui-over-mcp-recipe"
@@ -20732,9 +20739,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lightningcss-darwin-arm64@npm:1.32.0":
+"lightningcss-darwin-arm64@npm:1.32.0, lightningcss-darwin-arm64@npm:^1.32.0":
   version: 1.32.0
   resolution: "lightningcss-darwin-arm64@npm:1.32.0"
+  checksum: 10c0/da954d0c215d0e95f15a92c8717f871017586e1332b98fd40e96196571d2fd3d51a727dc530768afee9f6a04da210510740574dd0c8dbf2ecced79e5996f1a06
   conditions: os=darwin & cpu=arm64
   languageName: node
   linkType: hard
@@ -29257,6 +29265,7 @@ __metadata:
     "@types/react-dom": "npm:^19.2.3"
     "@types/uuid": "npm:^11.0.0"
     "@vitejs/plugin-react": "npm:^6.0.2"
+    "@yodaos-pkg/ink": "npm:^0.12.3"
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     eslint: "npm:^10.4.1"
@@ -29268,6 +29277,7 @@ __metadata:
     globals: "npm:^17.6.0"
     hono: "npm:^4.11.10"
     jsdom: "npm:^29.1.1"
+    lightningcss-darwin-arm64: "npm:^1.32.0"
     localforage: "npm:^1.10.0"
     lucide-react: "npm:^1.17.0"
     next: "npm:16.2.9"

@@ -17,6 +17,7 @@
 import {NextRequest, NextResponse} from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {findLatestExecutionStartIndex} from '@/lib/studio-run-events';
 
 const STUDIO_ROOT = path.resolve(process.cwd(), '../../.genui-eval-studio');
 
@@ -26,6 +27,23 @@ const RUNNING_STATUSES = new Set([
   'running_render',
   'collecting_device',
 ]);
+
+async function readJson<T>(filePath: string, fallback: T): Promise<T> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+async function readLegacyPid(runDir: string): Promise<number | null> {
+  try {
+    const pid = parseInt((await fs.readFile(path.join(runDir, 'pid.txt'), 'utf8')).trim(), 10);
+    return Number.isNaN(pid) ? null : pid;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -81,24 +99,24 @@ export async function GET(
           }
         }
       }
-      const lastCreatedIndex = recentEvents
-        .map((event, index) => ({event, index}))
-        .filter(item => item.event.event_type === 'run.created')
-        .at(-1)?.index;
-      if (lastCreatedIndex !== undefined) {
-        latestExecutionStartIndex = lastCreatedIndex;
+      const boundaryIndex = findLatestExecutionStartIndex(recentEvents);
+      if (boundaryIndex !== undefined) {
+        latestExecutionStartIndex = boundaryIndex;
       }
     } catch (err) {
       // It is fine if events.jsonl does not exist yet or is empty
     }
 
+    const executionPath = path.join(runDir, 'execution.json');
+    const executionMeta = await readJson<any>(executionPath, null);
+    const latestExecutionId = summary.metadata?.latest_execution_id;
+    const executionMatchesLatest = !latestExecutionId || !executionMeta?.executionId || executionMeta.executionId === latestExecutionId;
+
     let isRunning = RUNNING_STATUSES.has(summary.status);
     if (isRunning) {
-      const pidPath = path.join(runDir, 'pid.txt');
       try {
-        const pidStr = (await fs.readFile(pidPath, 'utf8')).trim();
-        const pid = parseInt(pidStr, 10);
-        if (!isNaN(pid)) {
+        const pid = executionMeta?.pid ?? await readLegacyPid(runDir);
+        if (pid !== null && executionMatchesLatest) {
           try {
             process.kill(pid, 0);
           } catch (killErr: any) {
@@ -133,6 +151,10 @@ export async function GET(
               // Update summary.json
               summary.status = 'error_infrastructure';
               summary.latest_error = extractedError;
+              summary.metadata = {
+                ...(summary.metadata ?? {}),
+                failed_execution_id: executionMeta?.executionId ?? latestExecutionId ?? null,
+              };
               try {
                 await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
               } catch (writeErr) {
@@ -162,6 +184,7 @@ export async function GET(
       summary,
       recentEvents,
       latestExecutionStartIndex,
+      execution: executionMeta,
       isRunning,
       executionLog,
     });

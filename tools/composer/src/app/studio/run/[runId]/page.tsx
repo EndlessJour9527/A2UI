@@ -17,10 +17,11 @@
 'use client';
 
 import Link from 'next/link';
-import {useMemo, use, useState, useEffect} from 'react';
+import {useMemo, use, useState, useEffect, useRef} from 'react';
 import {ArrowLeft, ArrowRight, Layers3, Play, Loader2, ChevronDown, MessageSquare, AlertCircle} from 'lucide-react';
 import {useStudio} from '@/contexts/studio-context';
 import {Button} from '@/components/ui/button';
+import {eventsForLatestExecution} from '@/lib/studio-run-events';
 
 type CompletionProviderMode = 'mock' | 'static' | 'llm' | 'local-openai' | 'nvidia';
 
@@ -51,6 +52,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [executionLog, setExecutionLog] = useState<string | null>(null);
   const [isLogPanelCollapsed, setIsLogPanelCollapsed] = useState(false);
+  const submittedProviderRef = useRef<string | null>(null);
 
   // Collapsible groups state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -80,32 +82,15 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       setFailedCount(run.failed_cases);
       setCurrentStatus(run.status);
       
-      const savedProvider = run.metadata?.completion_provider as string | undefined;
-      if (savedProvider) {
-        if (savedProvider === 'mock') {
-          setProviderMode('mock');
-          setProviderModel(run.model || '');
-        } else if (savedProvider === 'static') {
-          setProviderMode('static');
-          setProviderModel(run.model || '');
-        } else if (savedProvider.startsWith('llm:')) {
-          setProviderMode('llm');
-          setProviderModel(savedProvider.slice(4));
-        } else if (savedProvider.startsWith('local-openai:')) {
-          setProviderMode('local-openai');
-          setProviderModel(savedProvider.slice(13));
-        } else if (savedProvider.startsWith('nvidia:')) {
-          setProviderMode('nvidia');
-          setProviderModel(savedProvider.slice(7));
-        } else {
-          const inferredMode = inferProviderMode(savedProvider);
-          setProviderMode(inferredMode);
-          setProviderModel(savedProvider);
-        }
-      } else {
-        const inferredMode = inferProviderMode(run.model);
-        setProviderMode(inferredMode);
-        setProviderModel(run.model || '');
+      const providerSelection = parseProviderValue(
+        submittedProviderRef.current ?? (run.metadata?.completion_provider as string | undefined) ?? run.model,
+        run.model,
+      );
+      setProviderMode(providerSelection.mode);
+      setProviderModel(providerSelection.model);
+
+      if (!RUNNING_STATUSES.includes(run.status)) {
+        submittedProviderRef.current = null;
       }
 
       if (run.status === 'error_infrastructure' || run.latest_error) {
@@ -167,7 +152,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         const latestExecutionStartIndex = typeof data.latestExecutionStartIndex === 'number'
           ? data.latestExecutionStartIndex
           : undefined;
-        const recentEvents = eventsForLatestExecution(data.recentEvents, latestExecutionStartIndex);
+        const recentEvents = eventsForLatestExecution<any>(
+          data.recentEvents ?? [],
+          latestExecutionStartIndex,
+        );
         
         // Count unique case completions to prevent duplicate counts from concurrent/rerun processes
         const caseStatuses: Record<string, string> = {};
@@ -199,8 +187,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         );
 
         if (caseStartedEvents.length > caseCompletedEvents.length) {
-          const activeEvent = caseStartedEvents[caseStartedEvents.length - 1];
-          setCurrentCaseId(activeEvent.payload.caseId);
+          const activeEvent = caseStartedEvents.at(-1);
+          if (activeEvent?.payload?.caseId) {
+            setCurrentCaseId(activeEvent.payload.caseId);
+          }
         } else {
           setCurrentCaseId(null);
         }
@@ -232,8 +222,12 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       setExecutionError('Select a provider model before starting this run.');
       return;
     }
+    const providerSelection = parseProviderValue(provider, providerModel);
 
     try {
+      submittedProviderRef.current = provider;
+      setProviderMode(providerSelection.mode);
+      setProviderModel(providerSelection.model);
       setValidationErrors(null);
       setExecutionError(null);
       setExecutionLog(null);
@@ -252,6 +246,14 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       });
       if (!res.ok) {
         const err = await res.json();
+        if (res.status === 409) {
+          setExecutionError(err.error || 'This run is already executing.');
+          setCurrentStatus(err.status || 'running_protocol');
+          setIsRunning(true);
+          await refreshStudioIndex();
+          return;
+        }
+        submittedProviderRef.current = null;
         if (err.details && Array.isArray(err.details)) {
           setValidationErrors(err.details);
         } else {
@@ -262,6 +264,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       }
       await refreshStudioIndex();
     } catch (err: any) {
+      submittedProviderRef.current = null;
       setExecutionError(err.message || 'An unexpected error occurred');
       setIsRunning(false);
     }
@@ -722,20 +725,28 @@ function buildProviderValue(mode: CompletionProviderMode, model: string) {
   return `${mode}:${trimmedModel}`;
 }
 
-function eventsForLatestExecution(events: any[], latestExecutionStartIndex?: number) {
-  if (typeof latestExecutionStartIndex === 'number') {
-    return events.slice(latestExecutionStartIndex + 1);
+function parseProviderValue(
+  provider: string | undefined | null,
+  fallbackModel = '',
+): {mode: CompletionProviderMode; model: string} {
+  const value = provider?.trim() || fallbackModel.trim();
+  if (!value) {
+    return {mode: 'mock', model: ''};
   }
-
-  const lastCreatedIndex = events
-    .map((event, index) => ({event, index}))
-    .filter(item => item.event.event_type === 'run.created')
-    .at(-1)?.index;
-
-  if (lastCreatedIndex === undefined) {
-    return events;
+  if (value === 'mock' || value === 'static') {
+    return {mode: value, model: ''};
   }
-  return events.slice(lastCreatedIndex + 1);
+  if (value.startsWith('llm:')) {
+    return {mode: 'llm', model: value.slice(4)};
+  }
+  if (value.startsWith('local-openai:')) {
+    return {mode: 'local-openai', model: value.slice(13)};
+  }
+  if (value.startsWith('nvidia:')) {
+    return {mode: 'nvidia', model: value.slice(7)};
+  }
+  const mode = inferProviderMode(value);
+  return {mode, model: value};
 }
 
 function inferProviderMode(model: string): CompletionProviderMode {

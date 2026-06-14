@@ -131,10 +131,47 @@ class StudioStorage:
         with events_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(to_jsonable(event), ensure_ascii=False) + "\n")
 
-    def prepare_for_execution(self, run_definition: StudioRunDefinition, provider: str) -> None:
+    def write_execution_metadata(
+        self,
+        run_id: str,
+        execution_id: str,
+        provider: str,
+        *,
+        pid: int | None = None,
+        started_at: datetime | None = None,
+    ) -> None:
+        """Persist metadata for the currently active runner process."""
+
+        execution_path = self.run_dir(run_id) / "execution.json"
+        current: dict[str, Any] = {}
+        if execution_path.exists():
+            try:
+                current = self.read_json(execution_path)
+            except Exception:
+                current = {}
+
+        payload = {
+            **current,
+            "executionId": execution_id,
+            "provider": provider,
+            "startedAt": started_at or datetime.now(timezone.utc),
+        }
+        if pid is not None:
+            payload["pid"] = pid
+
+        self.write_json(execution_path, payload)
+
+    def prepare_for_execution(
+        self,
+        run_definition: StudioRunDefinition,
+        provider: str,
+        execution_id: str | None = None,
+    ) -> None:
         """Reset per-execution artifacts so reruns only surface the latest attempt."""
 
         run_dir = self.run_dir(run_definition.run_id)
+        execution_id = execution_id or f"exec-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}"
+        started_at = datetime.now(timezone.utc)
 
         for group in run_definition.groups:
             for case in group.cases:
@@ -168,19 +205,27 @@ class StudioStorage:
         run_definition.metadata = {
             **run_definition.metadata,
             "completion_provider": provider,
-            "latest_execution_started_at": datetime.now(timezone.utc),
+            "latest_execution_id": execution_id,
+            "latest_execution_started_at": started_at,
         }
+        self.write_execution_metadata(
+            run_definition.run_id,
+            execution_id,
+            provider,
+            started_at=started_at,
+        )
         self.write_json(run_dir / "run.json", run_definition)
         self.write_json(run_dir / "summary.json", self.build_summary(run_definition))
         self.append_event(
             StudioEvent(
-                event_type="run.created",
+                event_type="run.execution_started",
                 run_id=run_definition.run_id,
                 payload={
                     "name": run_definition.name,
                     "executionMode": run_definition.execution_mode,
                     "groupIds": [group.group_id for group in run_definition.groups],
                     "completionProvider": provider,
+                    "executionId": execution_id,
                 },
             )
         )

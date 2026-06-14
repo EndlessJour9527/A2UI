@@ -171,6 +171,70 @@ def test_orchestrator_run_persists_indexes_and_result(tmp_path: Path):
     assert manifest["artifacts"]["protocol.parsed"] == "protocol/parsed.json"
 
 
+def test_prepare_for_execution_records_execution_started_event(tmp_path: Path):
+    run_definition = build_run_definition(tmp_path)
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = build_orchestrator(storage)
+
+    orchestrator.initialize_run(run_definition)
+    storage.prepare_for_execution(
+        run_definition,
+        "nvidia:deepseek-ai/deepseek-v4-flash",
+        "exec-test-123",
+    )
+
+    run_dir = run_definition.storage_root / "runs" / run_definition.run_id
+    run_data = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    execution_data = json.loads((run_dir / "execution.json").read_text(encoding="utf-8"))
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    assert summary["metadata"]["completion_provider"] == "nvidia:deepseek-ai/deepseek-v4-flash"
+    assert summary["metadata"]["latest_execution_id"] == "exec-test-123"
+    assert summary["metadata"]["latest_execution_started_at"]
+    assert run_data["metadata"]["latest_execution_id"] == "exec-test-123"
+    assert execution_data["executionId"] == "exec-test-123"
+    assert execution_data["provider"] == "nvidia:deepseek-ai/deepseek-v4-flash"
+    assert events[-1]["event_type"] == "run.execution_started"
+    assert events[-1]["payload"]["executionId"] == "exec-test-123"
+    assert events[-1]["payload"]["completionProvider"] == "nvidia:deepseek-ai/deepseek-v4-flash"
+
+
+def test_persisted_execution_does_not_append_created_event(tmp_path: Path):
+    run_definition = build_run_definition(tmp_path)
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = build_orchestrator(storage)
+
+    orchestrator.initialize_run(run_definition)
+    storage.prepare_for_execution(
+        run_definition,
+        "nvidia:deepseek-ai/deepseek-v4-flash",
+        "exec-persisted",
+    )
+    orchestrator.run(
+        run_definition,
+        completion_provider=lambda _: VALID_COMPLETION,
+        initialize_storage=False,
+    )
+
+    events = [
+        json.loads(line)
+        for line in (run_definition.storage_root / "runs" / run_definition.run_id / "events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    ]
+
+    assert [event["event_type"] for event in events].count("run.created") == 1
+    assert events[1]["event_type"] == "run.execution_started"
+    assert events[1]["payload"]["executionId"] == "exec-persisted"
+    assert events[2]["event_type"] == "group.started"
+
+
 def test_orchestrator_run_tracks_failed_protocol_in_summary(tmp_path: Path):
     run_definition = build_run_definition(tmp_path)
     storage = StudioStorage(run_definition.storage_root)
@@ -514,4 +578,3 @@ def test_create_rerun_script(tmp_path: Path):
         new_run_data = json.loads((new_run_dir / "run.json").read_text(encoding="utf-8"))
         assert len(new_run_data["groups"][0]["cases"]) == 1
         assert new_run_data["groups"][0]["cases"][0]["case_id"] == "case-2"
-
