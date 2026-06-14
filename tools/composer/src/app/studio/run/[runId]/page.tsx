@@ -50,6 +50,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   const [validationErrors, setValidationErrors] = useState<string[] | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [executionLog, setExecutionLog] = useState<string | null>(null);
+  const [isLogPanelCollapsed, setIsLogPanelCollapsed] = useState(false);
 
   // Collapsible groups state
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -124,7 +125,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         if (!res.ok) return;
         const data = await res.json();
         if (!active) return;
-        setExecutionLog(data.executionLog || null);
+        setExecutionLog(typeof data.executionLog === 'string' ? data.executionLog : null);
         if (data.summary.status === 'error_infrastructure' || data.summary.latest_error) {
           setExecutionError(data.summary.latest_error || 'An infrastructure or configuration error occurred.');
         }
@@ -156,7 +157,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
 
         setIsRunning(data.isRunning);
         setCurrentStatus(data.summary.status);
-        setExecutionLog(data.executionLog || null);
+        setExecutionLog(typeof data.executionLog === 'string' ? data.executionLog : null);
         if (data.summary.status === 'error_infrastructure' || data.summary.latest_error) {
           setExecutionError(data.summary.latest_error || 'An infrastructure or configuration error occurred.');
         } else if (data.summary.status === 'completed' || data.summary.status === 'failed') {
@@ -235,6 +236,8 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
     try {
       setValidationErrors(null);
       setExecutionError(null);
+      setExecutionLog(null);
+      setIsLogPanelCollapsed(false);
       setIsRunning(true);
       setCurrentStatus('preparing');
       const res = await fetch('/api/studio/runs/execute', {
@@ -276,9 +279,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
 
   const totalCases = run.total_cases;
   const progressPercent = totalCases > 0 ? Math.min((completedCount / totalCases) * 100, 100) : 0;
+  const shouldShowLogPanel = isRunning || !!executionLog || !!executionError || !!validationErrors;
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto p-6 md:p-8">
+    <div className={`flex flex-1 flex-col overflow-auto p-6 md:p-8 ${shouldShowLogPanel ? 'pb-24 md:pb-28' : ''}`}>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-2">
@@ -452,19 +456,6 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                 <span className="font-semibold">Execution failed:</span> {executionError}
               </div>
             </div>
-            {executionLog && (
-              <div className="mt-1 border-t border-rose-200/50 pt-3">
-                <details className="group">
-                  <summary className="cursor-pointer font-medium hover:underline text-rose-800 select-none flex items-center gap-1">
-                    <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                    View Execution Log / Traceback
-                  </summary>
-                  <pre className="mt-2 max-h-60 overflow-auto rounded-xl bg-stone-900 p-4 font-mono text-xs text-stone-200 shadow-inner leading-relaxed whitespace-pre-wrap">
-                    {executionLog}
-                  </pre>
-                </details>
-              </div>
-            )}
           </div>
         )}
 
@@ -491,18 +482,6 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           <MetricCard label="Completed" value={completedCount} />
           <MetricCard label="Failed" value={failedCount} tone={failedCount > 0 ? 'danger' : 'default'} />
         </section>
-
-        {executionLog && !executionError && (
-          <div className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-              {isRunning && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-              Execution Log
-            </h3>
-            <pre className="max-h-60 overflow-auto rounded-xl bg-stone-900 p-4 font-mono text-xs text-stone-200 shadow-inner leading-relaxed whitespace-pre-wrap">
-              {executionLog}
-            </pre>
-          </div>
-        )}
 
         <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
           <div className="mb-4 flex items-center gap-2">
@@ -615,6 +594,78 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
             })}
           </div>
         </section>
+      </div>
+      {shouldShowLogPanel && (
+        <ExecutionLogPanel
+          collapsed={isLogPanelCollapsed}
+          isRunning={isRunning}
+          log={executionLog}
+          error={executionError}
+          validationErrors={validationErrors}
+          onToggle={() => setIsLogPanelCollapsed(value => !value)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExecutionLogPanel({
+  collapsed,
+  isRunning,
+  log,
+  error,
+  validationErrors,
+  onToggle,
+}: {
+  collapsed: boolean;
+  isRunning: boolean;
+  log: string | null;
+  error: string | null;
+  validationErrors: string[] | null;
+  onToggle: () => void;
+}) {
+  const statusText = isRunning
+    ? 'Running'
+    : error || validationErrors
+      ? 'Needs attention'
+      : 'Idle';
+  const displayLog = log && log.trim().length > 0
+    ? log
+    : isRunning
+      ? 'Waiting for runner output...'
+      : 'No execution log has been written yet.';
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-col px-4 md:px-8">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex h-12 w-full items-center justify-between gap-4 text-left text-sm"
+          aria-expanded={!collapsed}
+        >
+          <span className="flex min-w-0 items-center gap-2 font-semibold text-foreground">
+            {isRunning && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+            Execution Log
+            <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+              {statusText}
+            </span>
+          </span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+        </button>
+
+        {!collapsed && (
+          <div className="pb-4">
+            {(error || validationErrors) && (
+              <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {error || validationErrors?.[0]}
+              </div>
+            )}
+            <pre className="h-64 overflow-auto rounded-md bg-stone-950 p-4 font-mono text-xs leading-relaxed text-stone-100 shadow-inner whitespace-pre-wrap">
+              {displayLog}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

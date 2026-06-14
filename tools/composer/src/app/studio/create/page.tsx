@@ -18,7 +18,6 @@
 
 import {useState, useRef} from 'react';
 import Link from 'next/link';
-import {useRouter} from 'next/navigation';
 import {
   ArrowLeft,
   FileUp,
@@ -33,8 +32,34 @@ import {
 import {Button} from '@/components/ui/button';
 import {useStudio} from '@/contexts/studio-context';
 
+interface CreatedRunResult {
+  runId: string;
+  groupsCount: number;
+  totalCases: number;
+  catalogProfileId: string;
+  plan: {
+    case_attempts: Array<{
+      caseId: string;
+      groupId: string;
+      renderer: string;
+      specVersion: string;
+      catalogProfileId: string;
+    }>;
+  };
+  executionProvider?: string;
+  executionStarted?: boolean;
+}
+
+function buildExecutionProvider(model: string): string {
+  if (!model) return 'mock';
+  if (model === 'mock' || model === 'static') return model;
+  if (model.startsWith('local-openai:') || model.startsWith('nvidia:') || model.startsWith('llm:')) return model;
+  if (model.startsWith('proxy_')) return `local-openai:${model}`;
+  if (model.startsWith('nvidia/') || model.startsWith('deepseek')) return `nvidia:${model}`;
+  return `llm:${model}`;
+}
+
 export default function CreateRunPage() {
-  const router = useRouter();
   const {refresh, bootstrap} = useStudio();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -49,7 +74,8 @@ export default function CreateRunPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdRun, setCreatedRun] = useState<any | null>(null);
+  const [executionStartError, setExecutionStartError] = useState<string | null>(null);
+  const [createdRun, setCreatedRun] = useState<CreatedRunResult | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -110,6 +136,7 @@ export default function CreateRunPage() {
 
     setLoading(true);
     setError(null);
+    setExecutionStartError(null);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -130,8 +157,32 @@ export default function CreateRunPage() {
         throw new Error(errData.error || `Upload failed with status ${response.status}`);
       }
 
-      const result = await response.json();
-      setCreatedRun(result);
+      const result = (await response.json()) as CreatedRunResult;
+      const provider = buildExecutionProvider(targetModel);
+      setCreatedRun({...result, executionProvider: provider, executionStarted: false});
+
+      const executeResponse = await fetch('/api/studio/runs/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          runId: result.runId,
+          provider,
+        }),
+      });
+
+      if (!executeResponse.ok) {
+        const errData = await executeResponse.json().catch(() => ({}));
+        const details = Array.isArray(errData.details) ? ` ${errData.details.join(' ')}` : '';
+        setExecutionStartError(
+          `${errData.error || `Execution start failed with status ${executeResponse.status}`}.${details}`.trim(),
+        );
+        await refresh();
+        return;
+      }
+
+      setCreatedRun({...result, executionProvider: provider, executionStarted: true});
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during run creation.');
@@ -169,6 +220,16 @@ export default function CreateRunPage() {
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
               <span className="font-semibold">Creation failed:</span> {error}
+            </div>
+          </div>
+        )}
+
+        {executionStartError && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <div>
+              <span className="font-semibold">Run created, but automatic execution did not start:</span>{' '}
+              {executionStartError}
             </div>
           </div>
         )}
@@ -378,10 +439,10 @@ export default function CreateRunPage() {
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Initializing run…
+                      Creating and starting...
                     </>
                   ) : (
-                    'Parse Excel & Create Run'
+                    'Create and Run'
                   )}
                 </Button>
               </div>
@@ -392,14 +453,20 @@ export default function CreateRunPage() {
             <div className="flex items-center gap-3 text-emerald-700">
               <CheckCircle2 className="h-6 w-6" />
               <div>
-                <h2 className="text-xl font-semibold">Run successfully initialized!</h2>
+                <h2 className="text-xl font-semibold">
+                  {createdRun.executionStarted
+                    ? 'Run successfully initialized and started!'
+                    : 'Run successfully initialized!'}
+                </h2>
                 <p className="text-sm text-emerald-700/80">
-                  Spreadsheet parsed and filesystem layout created.
+                  {createdRun.executionStarted
+                    ? 'Spreadsheet parsed, filesystem layout created, and execution launched.'
+                    : 'Spreadsheet parsed and filesystem layout created.'}
                 </p>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4 rounded-2xl border bg-background/50 p-4 text-sm">
+            <div className="grid gap-4 md:grid-cols-5 rounded-2xl border bg-background/50 p-4 text-sm">
               <div>
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">Run ID</span>
                 <div className="font-semibold truncate">{createdRun.runId}</div>
@@ -416,6 +483,10 @@ export default function CreateRunPage() {
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">Profile</span>
                 <div className="font-semibold">{createdRun.catalogProfileId}</div>
               </div>
+              <div>
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">Provider</span>
+                <div className="font-semibold truncate">{createdRun.executionProvider}</div>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -429,7 +500,7 @@ export default function CreateRunPage() {
                   <span>Group</span>
                   <span>Parameters / Spec</span>
                 </div>
-                {createdRun.plan.case_attempts.map((attempt: any, idx: number) => (
+                {createdRun.plan.case_attempts.map((attempt, idx) => (
                   <div
                     key={idx}
                     className="grid grid-cols-[1.5fr_1fr_3fr] items-center gap-3 border-b border-border/50 px-4 py-3 text-xs last:border-b-0"

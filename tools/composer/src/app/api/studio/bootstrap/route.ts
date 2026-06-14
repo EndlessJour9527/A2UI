@@ -18,11 +18,11 @@ export async function GET() {
   const groups = await readJson(path.join(STUDIO_ROOT, 'indexes', 'groups.json'), []);
   const cases = await readJson(path.join(STUDIO_ROOT, 'indexes', 'cases.json'), []);
 
-  // Parse eval/a2ui_eval/.env to retrieve local-openai proxy details
+  // Parse eval/genui_eval/.env to retrieve local-openai proxy details
   let proxyModel = 'gemini-3.5-flash-extra-low';
   let proxyPort = '8045';
   try {
-    const envPath = path.resolve(process.cwd(), '../../eval/a2ui_eval/.env');
+    const envPath = path.resolve(process.cwd(), '../../eval/genui_eval/.env');
     const envRaw = await fs.readFile(envPath, 'utf-8');
     const lines = envRaw.split('\n');
     for (const line of lines) {

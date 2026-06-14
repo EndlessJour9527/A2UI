@@ -51,10 +51,10 @@ export async function POST(request: NextRequest) {
       await execFileAsync('uv', [
         'run',
         '--python',
-        '3.13',
+        '3.14',
         'python',
         '-m',
-        'a2ui_eval.run_executor',
+        'genui_eval.run_executor',
         safeRunId,
         '--validate-only'
       ], {
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         env: {
           ...process.env,
           PYTHONPATH: '.',
+          PYTHONUNBUFFERED: '1',
         },
       });
     } catch (execErr: any) {
@@ -121,9 +122,11 @@ export async function POST(request: NextRequest) {
     // Spawn Python orchestrator run_executor.py
     const child = spawn('uv', [
       'run',
+      '--python',
+      '3.14',
       'python',
       '-m',
-      'a2ui_eval.run_executor',
+      'genui_eval.run_executor',
       safeRunId,
       '--provider',
       provider
@@ -132,6 +135,7 @@ export async function POST(request: NextRequest) {
       env: {
         ...process.env,
         PYTHONPATH: '.',
+        PYTHONUNBUFFERED: '1',
       },
       detached: true,
       stdio: ['ignore', logFd, logFd]

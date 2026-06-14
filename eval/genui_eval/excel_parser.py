@@ -333,7 +333,7 @@ if __name__ == "__main__":
     import json
     from genui_eval.studio_types import to_jsonable
     if len(sys.argv) < 2:
-        print("Usage: python -m a2ui_eval.excel_parser <file_path>")
+        print("Usage: python -m genui_eval.excel_parser <file_path>")
         sys.exit(1)
     try:
         parsed_groups = parse_excel_test_set(Path(sys.argv[1]))

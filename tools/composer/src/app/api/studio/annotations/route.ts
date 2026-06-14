@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
           'run',
           'python',
           '-c',
-          `from a2ui_eval.studio_storage import StudioStorage; import pathlib; storage = StudioStorage(pathlib.Path('${STUDIO_ROOT.replace(/\\/g, '\\\\')}')); storage.rebuild_indexes()`,
+          `from genui_eval.studio_storage import StudioStorage; import pathlib; storage = StudioStorage(pathlib.Path('${STUDIO_ROOT.replace(/\\/g, '\\\\')}')); storage.rebuild_indexes()`,
         ],
         {
           cwd: EVAL_ROOT,

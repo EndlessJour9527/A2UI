@@ -154,6 +154,9 @@ export async function GET(
     } catch {
       // Ignored if file does not exist
     }
+    if (!executionLog && recentEvents.length > 0) {
+      executionLog = formatEventLog(recentEvents, latestExecutionStartIndex);
+    }
 
     return NextResponse.json({
       summary,
@@ -169,4 +172,22 @@ export async function GET(
       {status: 500},
     );
   }
+}
+
+function formatEventLog(events: any[], latestExecutionStartIndex: number) {
+  const scopedEvents = events.slice(latestExecutionStartIndex);
+  return scopedEvents
+    .map(event => {
+      const timestamp = event.timestamp || '';
+      const type = event.event_type || 'event';
+      const payload = event.payload || {};
+      const parts = [
+        payload.groupId ? `group=${payload.groupId}` : '',
+        payload.caseId ? `case=${payload.caseId}` : '',
+        payload.status ? `status=${payload.status}` : '',
+        payload.completionProvider ? `provider=${payload.completionProvider}` : '',
+      ].filter(Boolean);
+      return `[${timestamp}] ${type}${parts.length > 0 ? ` ${parts.join(' ')}` : ''}`;
+    })
+    .join('\n');
 }

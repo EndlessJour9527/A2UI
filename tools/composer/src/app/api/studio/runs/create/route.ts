@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Execute python script using uv runner
-      const {stdout} = await execFileAsync('uv', ['run', 'python', ...pythonArgs], {
+      const {stdout} = await execFileAsync('uv', ['run', '--python', '3.14', 'python', ...pythonArgs], {
         cwd: EVAL_ROOT,
         env: {
           ...process.env,

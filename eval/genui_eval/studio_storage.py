@@ -135,13 +135,6 @@ class StudioStorage:
         """Reset per-execution artifacts so reruns only surface the latest attempt."""
 
         run_dir = self.run_dir(run_definition.run_id)
-        execution_log_path = run_dir / "execution.log"
-        if execution_log_path.exists():
-            execution_log_path.unlink()
-
-        pid_path = run_dir / "pid.txt"
-        if pid_path.exists():
-            pid_path.unlink()
 
         for group in run_definition.groups:
             for case in group.cases:
@@ -403,9 +396,52 @@ class StudioStorage:
 
         for summary_path in sorted(self.runs_dir.glob("*/summary.json")):
             summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
-            runs_index.append(summary_data)
             run_dir = summary_path.parent
             run_id = run_dir.name
+
+            # Recompute actual counts from materialized case statuses on disk
+            completed_cases, failed_cases, _ = self.summarize_case_statuses(run_id)
+
+            active_statuses = {
+                StudioRunStatus.QUEUED.value,
+                StudioRunStatus.PREPARING.value,
+                StudioRunStatus.RUNNING_PROTOCOL.value,
+                StudioRunStatus.RUNNING_RENDER.value,
+                StudioRunStatus.COLLECTING_DEVICE.value,
+            }
+            current_status = summary_data.get("status")
+
+            changed = False
+
+            if summary_data.get("completed_cases") != completed_cases:
+                summary_data["completed_cases"] = completed_cases
+                changed = True
+
+            if summary_data.get("failed_cases") != failed_cases:
+                summary_data["failed_cases"] = failed_cases
+                changed = True
+
+            # If the run is in a final status, ensure it matches the actual case results
+            if current_status not in active_statuses:
+                total_cases = summary_data.get("total_cases", 0)
+                if total_cases > 0 and completed_cases + failed_cases == total_cases:
+                    new_status = StudioRunStatus.COMPLETED.value if failed_cases == 0 else StudioRunStatus.FAILED_PROTOCOL.value
+                    if current_status == StudioRunStatus.ERROR_INFRASTRUCTURE.value:
+                        new_status = StudioRunStatus.ERROR_INFRASTRUCTURE.value
+                    if current_status != new_status:
+                        summary_data["status"] = new_status
+                        changed = True
+
+            if changed:
+                try:
+                    summary_path.write_text(
+                        json.dumps(summary_data, indent=2, ensure_ascii=False) + "\n",
+                        encoding="utf-8",
+                    )
+                except Exception as e:
+                    print(f"Warning: failed to write updated summary for {run_id}: {e}")
+
+            runs_index.append(summary_data)
 
             for group_path in sorted(run_dir.glob("groups/*/group.json")):
                 group_data = json.loads(group_path.read_text(encoding="utf-8"))
@@ -471,7 +507,7 @@ class StudioStorage:
             ),
             "protocolProfileId": getattr(source, "protocol_profile_id", None),
             "adapterId": (
-                f"a2ui_eval.protocols.{getattr(source, 'protocol_id', 'a2ui')}"
+                f"genui_eval.protocols.{getattr(source, 'protocol_id', 'a2ui')}"
             ),
             "protocolOptions": getattr(source, "protocol_options", {}),
             "provenance": {},

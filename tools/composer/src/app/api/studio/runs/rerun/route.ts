@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const {stdout} = await execFileAsync('uv', ['run', '--python', '3.13', 'python', ...pythonArgs], {
+      const {stdout} = await execFileAsync('uv', ['run', '--python', '3.14', 'python', ...pythonArgs], {
         cwd: EVAL_ROOT,
         env: {
           ...process.env,
