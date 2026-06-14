@@ -98,7 +98,7 @@ def main() -> None:
             studio_root = build_default_studio_root(EVAL_ROOT)
             orchestrator = StudioOrchestrator.for_repo(EVAL_ROOT)
 
-        protocol_profile_id = args.protocol_profile_id or args.catalog_profile_id
+        protocol_profile_id = args.protocol_profile_id
 
         run_definition = create_run_definition(
             run_id=run_id,

@@ -16,6 +16,7 @@
 
 'use client';
 
+import {useEffect} from 'react';
 import {CopilotKitProvider} from '@copilotkit/react-core/v2';
 import {WidgetsProvider} from '@/contexts/widgets-context';
 import {SpecVersionProvider} from '@/contexts/spec-version-context';
@@ -26,6 +27,67 @@ interface AppShellProps {
 }
 
 export function AppShell({children}: AppShellProps) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let shadowObserver: MutationObserver | null = null;
+
+    const setupShadowObserver = (element: HTMLElement) => {
+      if (!element.shadowRoot) return;
+
+      const updateOpenState = () => {
+        const isOpen = !!element.shadowRoot?.querySelector('.inspector-window');
+        if (isOpen) {
+          element.setAttribute('data-open', 'true');
+        } else {
+          element.removeAttribute('data-open');
+        }
+      };
+
+      updateOpenState();
+
+      shadowObserver = new MutationObserver(updateOpenState);
+      shadowObserver.observe(element.shadowRoot, {
+        childList: true,
+        subtree: true,
+      });
+    };
+
+    const existing = document.querySelector('cpk-web-inspector');
+    if (existing) {
+      setupShadowObserver(existing as HTMLElement);
+    }
+
+    const docObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.tagName.toLowerCase() === 'cpk-web-inspector') {
+              setupShadowObserver(node);
+            } else {
+              const found = node.querySelector('cpk-web-inspector');
+              if (found) {
+                setupShadowObserver(found as HTMLElement);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    docObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => {
+      docObserver.disconnect();
+      if (shadowObserver) {
+        shadowObserver.disconnect();
+      }
+    };
+  }, []);
+
   return (
     <CopilotKitProvider runtimeUrl="/api/copilotkit" showDevConsole="auto">
       <SpecVersionProvider>

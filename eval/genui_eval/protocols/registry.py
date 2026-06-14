@@ -54,7 +54,7 @@ class ProtocolRegistry:
                 protocol_id="a2ui",
                 protocol_version="0.9",
                 adapter_id="genui_eval.protocols.a2ui",
-                renderer_support=["ink"],
+                renderer_support=["ink", "react"],
                 provenance={"source": "builtin-a2ui-ink-v0_9"},
                 protocol_options={"catalogProfileId": "ink-a2ui-v0_9"},
             ),
@@ -71,11 +71,10 @@ class ProtocolRegistry:
 
         for profile in profiles:
             profile_path = self.profiles_dir / f"{profile.profile_id}.json"
-            if not profile_path.exists():
-                profile_path.write_text(
-                    json.dumps(asdict(profile), indent=2, ensure_ascii=False) + "\n",
-                    encoding="utf-8",
-                )
+            profile_path.write_text(
+                json.dumps(asdict(profile), indent=2, ensure_ascii=False) + "\n",
+                encoding="utf-8",
+            )
 
         if registry_path.exists():
             try:

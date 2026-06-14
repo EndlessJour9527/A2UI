@@ -251,3 +251,19 @@
   box-shadow: none !important;
   background-color: #f5f5f5 !important;
 }
+
+/* Position CopilotKit web inspector button at bottom-left to avoid blocking right sidebar slider */
+cpk-web-inspector:not([data-open="true"]) {
+  top: auto !important;
+  bottom: 16px !important;
+  left: 16px !important;
+  right: auto !important;
+  transform: none !important;
+}
+
+@media (min-width: 768px) {
+  cpk-web-inspector:not([data-open="true"]) {
+    left: 240px !important;
+  }
+}
+

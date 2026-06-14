@@ -101,7 +101,7 @@ class CatalogRegistry:
             catalog_id="https://jsar-project.github.io/ink/a2ui/catalog.json",
             spec_version="0.9",
             catalog_schema_path=ink_catalog_rel,
-            renderer_support=["ink"],
+            renderer_support=["ink", "react"],
             provenance={"source": "ink-spec-v0_9"},
         )
 
@@ -109,8 +109,7 @@ class CatalogRegistry:
 
         for profile in profiles_to_seed:
             profile_path = self.profiles_dir / f"{profile.profile_id}.json"
-            if not profile_path.exists():
-                profile_path.write_text(json.dumps(asdict(profile), indent=2) + "\n", encoding="utf-8")
+            profile_path.write_text(json.dumps(asdict(profile), indent=2) + "\n", encoding="utf-8")
 
         if not registry_path.exists():
             registry_data = {
