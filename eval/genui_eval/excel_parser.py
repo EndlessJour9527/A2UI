@@ -23,6 +23,32 @@ from pathlib import Path
 from .studio_types import StudioCaseSelection, StudioGroupSelection
 
 
+RECOGNIZED_ALIASES = {
+    "prompt", "prompt_text", "promptText", "提示词",
+    "case_id", "caseId", "id", "用例id",
+    "group_id", "groupId", "group", "分组",
+    "description", "desc", "描述",
+    "target", "expected", "target_criteria", "targetCriteria", "预期结果",
+    "context", "extra_context", "extraContext", "上下文",
+    "spec_version", "specVersion", "spec", "协议版本",
+    "protocol_id", "protocolId", "协议",
+    "protocol_version", "protocolVersion",
+    "protocol_profile_id", "protocolProfileId", "协议配置",
+    "protocol_options", "protocolOptions", "协议选项",
+    "renderer", "渲染器",
+    "catalog_id", "catalogId", "组件库id",
+    "catalog_profile_id", "catalogProfileId", "profile_id", "profile", "配置模板",
+    "metadata",
+}
+
+
+def normalize_header(name: str) -> str:
+    return name.lower().replace(" ", "").replace("_", "").replace("-", "")
+
+
+RECOGNIZED_NORMALIZED_HEADERS = {normalize_header(alias) for alias in RECOGNIZED_ALIASES}
+
+
 def parse_json_test_set(file_path: Path) -> list[StudioGroupSelection]:
     """Parse a .json test set file into structured groups and cases."""
     with open(file_path, "r", encoding="utf-8") as f:
@@ -75,6 +101,8 @@ def parse_json_test_set(file_path: Path) -> list[StudioGroupSelection]:
                 protocol_options = json.loads(protocol_options)
             else:
                 protocol_options = {}
+        else:
+            protocol_options = dict(protocol_options)
                 
         renderer = get_val(["renderer", "渲染器"], "react")
         catalog_id = get_val(["catalog_id", "catalogId", "组件库id"])
@@ -82,6 +110,21 @@ def parse_json_test_set(file_path: Path) -> list[StudioGroupSelection]:
         
         if catalog_profile_id and "catalogProfileId" not in protocol_options:
             protocol_options["catalogProfileId"] = catalog_profile_id
+
+        metadata = get_val(["metadata"], {})
+        if isinstance(metadata, str):
+            if metadata.strip():
+                metadata = json.loads(metadata)
+            else:
+                metadata = {}
+        else:
+            metadata = dict(metadata)
+
+        # Place unrecognized keys and their values into protocol_options
+        unrecognized_keys = [k for k in raw_case.keys() if k not in RECOGNIZED_ALIASES]
+        for uk in unrecognized_keys:
+            if uk not in protocol_options:
+                protocol_options[uk] = raw_case[uk]
             
         return StudioCaseSelection(
             case_id=case_id,
@@ -98,6 +141,7 @@ def parse_json_test_set(file_path: Path) -> list[StudioGroupSelection]:
             renderer=renderer,
             catalog_id=catalog_id,
             catalog_profile_id=catalog_profile_id,
+            metadata=metadata,
         )
 
     is_group_list = False
@@ -199,6 +243,17 @@ def parse_excel_test_set(file_path: Path) -> list[StudioGroupSelection]:
         renderer_col = get_col_idx(["renderer", "渲染器"])
         catalog_id_col = get_col_idx(["catalog_id", "catalogid", "组件库id"])
         profile_col = get_col_idx(["catalog_profile_id", "profile_id", "profile", "配置模板"])
+        metadata_col = get_col_idx(["metadata"])
+
+        # Identify unrecognized columns
+        unrecognized_cols = []
+        for idx, cell_val in enumerate(rows[0]):
+            if cell_val is None:
+                continue
+            orig_name = str(cell_val).strip()
+            norm_name = normalize_header(orig_name)
+            if norm_name not in RECOGNIZED_NORMALIZED_HEADERS:
+                unrecognized_cols.append((idx, orig_name))
 
         for row in rows[1:]:
             if not row or len(row) <= prompt_col:
@@ -277,7 +332,10 @@ def parse_excel_test_set(file_path: Path) -> list[StudioGroupSelection]:
             ):
                 raw_options = str(row[protocol_options_col]).strip()
                 if raw_options:
-                    protocol_options = json.loads(raw_options)
+                    try:
+                        protocol_options = json.loads(raw_options)
+                    except Exception:
+                        protocol_options = {}
             renderer = (
                 str(row[renderer_col]).strip()
                 if renderer_col is not None and len(row) > renderer_col and row[renderer_col] is not None
@@ -296,6 +354,28 @@ def parse_excel_test_set(file_path: Path) -> list[StudioGroupSelection]:
             if catalog_profile_id and "catalogProfileId" not in protocol_options:
                 protocol_options["catalogProfileId"] = catalog_profile_id
 
+            metadata = {}
+            if (
+                metadata_col is not None
+                and len(row) > metadata_col
+                and row[metadata_col] is not None
+            ):
+                raw_metadata = str(row[metadata_col]).strip()
+                if raw_metadata:
+                    try:
+                        metadata = json.loads(raw_metadata)
+                    except Exception:
+                        metadata = {}
+
+            # Place unrecognized columns/keys into protocol_options
+            for col_idx, orig_name in unrecognized_cols:
+                if len(row) > col_idx and row[col_idx] is not None:
+                    val = row[col_idx]
+                    if isinstance(val, str):
+                        val = val.strip()
+                    if orig_name not in protocol_options:
+                        protocol_options[orig_name] = val
+
             case = StudioCaseSelection(
                 case_id=case_id,
                 prompt=prompt_str,
@@ -311,6 +391,7 @@ def parse_excel_test_set(file_path: Path) -> list[StudioGroupSelection]:
                 renderer=renderer,
                 catalog_id=catalog_id,
                 catalog_profile_id=catalog_profile_id,
+                metadata=metadata,
             )
 
             groups.setdefault(group_id, []).append(case)

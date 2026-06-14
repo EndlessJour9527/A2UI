@@ -340,3 +340,56 @@ def test_create_run_from_json_script(tmp_path: Path):
         manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
         assert manifest["artifacts"]["source_json"] == "source/source.json"
 
+
+def test_excel_parser_custom_columns_in_protocol_options(tmp_path: Path):
+    excel_path = tmp_path / "custom_cols.xlsx"
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = "Custom Cols"
+    sheet.append(
+        [
+            "prompt",
+            "group",
+            "my_custom_option",
+            "another_option",
+        ]
+    )
+    sheet.append(
+        [
+            "Test prompt with custom options",
+            "custom-group",
+            "val1",
+            "val2",
+        ]
+    )
+    wb.save(str(excel_path))
+
+    groups = parse_excel_test_set(excel_path)
+    assert len(groups) == 1
+    cases = groups[0].cases
+    assert len(cases) == 1
+    assert cases[0].protocol_options["my_custom_option"] == "val1"
+    assert cases[0].protocol_options["another_option"] == "val2"
+
+
+def test_json_parser_custom_keys_in_protocol_options(tmp_path: Path):
+    json_path = tmp_path / "custom_keys.json"
+    import json
+    data = [
+        {
+            "prompt": "Test prompt json custom",
+            "group": "custom-group",
+            "custom_key_json": "json_val",
+            "extra_field": 42
+        }
+    ]
+    json_path.write_text(json.dumps(data), encoding="utf-8")
+
+    groups = parse_excel_test_set(json_path)
+    assert len(groups) == 1
+    cases = groups[0].cases
+    assert len(cases) == 1
+    assert cases[0].protocol_options["custom_key_json"] == "json_val"
+    assert cases[0].protocol_options["extra_field"] == 42
+
+

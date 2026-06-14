@@ -581,3 +581,74 @@ def test_create_rerun_script(tmp_path: Path):
         new_run_data = json.loads((new_run_dir / "run.json").read_text(encoding="utf-8"))
         assert len(new_run_data["groups"][0]["cases"]) == 1
         assert new_run_data["groups"][0]["cases"][0]["case_id"] == "case-2"
+
+
+def test_orchestrator_parallel_run(tmp_path: Path):
+    import time
+    from genui_eval.studio_types import StudioExecutionMode
+
+    groups = [
+        StudioGroupSelection(
+            group_id="group-p",
+            label="Group P",
+            cases=[
+                StudioCaseSelection(
+                    case_id="case-p1",
+                    group_id="group-p",
+                    prompt="Prompt P1",
+                ),
+                StudioCaseSelection(
+                    case_id="case-p2",
+                    group_id="group-p",
+                    prompt="Prompt P2",
+                ),
+                StudioCaseSelection(
+                    case_id="case-p3",
+                    group_id="group-p",
+                    prompt="Prompt P3",
+                ),
+            ],
+        )
+    ]
+
+    run_definition = create_run_definition(
+        run_id="run-parallel-test",
+        name="Parallel Test Run",
+        groups=groups,
+        model="test-model",
+        grading_model="judge-model",
+        execution_mode=StudioExecutionMode.PARALLEL,
+        max_parallelism=3,
+    )
+    run_definition.catalog_profile_id = "a2ui-basic-v0_9"
+    run_definition.storage_root = tmp_path / ".genui-eval-studio"
+    run_definition.created_at = datetime.now(timezone.utc)
+
+    storage = StudioStorage(run_definition.storage_root)
+    orchestrator = build_orchestrator(storage)
+
+    start_times = {}
+    end_times = {}
+
+    def slow_completion_provider(case):
+        start_times[case.case_id] = time.time()
+        time.sleep(0.2)
+        end_times[case.case_id] = time.time()
+        return VALID_COMPLETION
+
+    orchestrator.run(run_definition, completion_provider=slow_completion_provider)
+
+    # Verify that run completed successfully
+    summary_path = run_definition.storage_root / "runs" / run_definition.run_id / "summary.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert summary["completed_cases"] == 3
+    assert summary["failed_cases"] == 0
+    assert summary["status"] == "completed"
+
+    all_starts = list(start_times.values())
+    all_ends = list(end_times.values())
+    
+    total_span = max(all_ends) - min(all_starts)
+    assert total_span < 0.5, f"Execution was serial or too slow, total span took {total_span}s"
+

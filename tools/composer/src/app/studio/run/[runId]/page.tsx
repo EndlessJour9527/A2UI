@@ -324,7 +324,6 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
       submittedProviderRef.current = provider;
       setProviderMode(providerSelection.mode);
       setProviderModel(providerSelection.model);
-      setSelectedExecutionId(null);
       setValidationErrors(null);
       setExecutionError(null);
       setExecutionLog(null);
@@ -347,6 +346,9 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           setExecutionError(err.error || 'This run is already executing.');
           setCurrentStatus(err.status || 'running_protocol');
           setIsRunning(true);
+          if (err.executionId) {
+            setSelectedExecutionId(err.executionId);
+          }
           await refreshStudioIndex();
           return;
         }
@@ -358,6 +360,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         }
         setIsRunning(false);
         return;
+      }
+      const data = await res.json();
+      if (data.executionId) {
+        setSelectedExecutionId(data.executionId);
       }
       await refreshStudioIndex();
     } catch (err: any) {

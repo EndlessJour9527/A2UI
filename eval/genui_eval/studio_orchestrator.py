@@ -16,7 +16,9 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -48,6 +50,7 @@ class StudioOrchestrator:
     ):
         self.storage = storage
         self.protocol_registry = protocol_registry
+        self.lock = threading.Lock()
 
     @classmethod
     def for_repo(cls, eval_root: Path) -> "StudioOrchestrator":
@@ -152,30 +155,45 @@ class StudioOrchestrator:
         summary.status = StudioRunStatus.RUNNING_PROTOCOL
         self.storage.update_run_summary(summary)
 
-        for group in run_definition.groups:
-            self.storage.append_event(
-                StudioEvent(
-                    event_type="group.started",
-                    run_id=run_definition.run_id,
-                    payload={"groupId": group.group_id},
-                )
-            )
+        is_parallel = (
+            run_definition.execution_mode == StudioExecutionMode.PARALLEL
+            and run_definition.max_parallelism > 1
+        )
 
-            for case in group.cases:
-                self.storage.update_case_status(
-                    run_definition.run_id,
-                    group.group_id,
-                    case.case_id,
-                    StudioRunStatus.RUNNING_PROTOCOL.value,
-                )
-                self.storage.append_event(
-                    StudioEvent(
-                        event_type="case.started",
-                        run_id=run_definition.run_id,
-                        payload={"groupId": group.group_id, "caseId": case.case_id},
+        if is_parallel:
+            started_groups = set()
+
+            def run_case_task(group, case) -> None:
+                # 1. Thread-safe group starting
+                if group.group_id not in started_groups:
+                    with self.lock:
+                        if group.group_id not in started_groups:
+                            self.storage.append_event(
+                                StudioEvent(
+                                    event_type="group.started",
+                                    run_id=run_definition.run_id,
+                                    payload={"groupId": group.group_id},
+                                )
+                            )
+                            started_groups.add(group.group_id)
+
+                # 2. Thread-safe case start events
+                with self.lock:
+                    self.storage.update_case_status(
+                        run_definition.run_id,
+                        group.group_id,
+                        case.case_id,
+                        StudioRunStatus.RUNNING_PROTOCOL.value,
                     )
-                )
+                    self.storage.append_event(
+                        StudioEvent(
+                            event_type="case.started",
+                            run_id=run_definition.run_id,
+                            payload={"groupId": group.group_id, "caseId": case.case_id},
+                        )
+                    )
 
+                # 3. Completion and evaluation (outside the lock!)
                 completion = completion_provider(case)
                 config = self.protocol_registry.resolve_for_case(run_definition, case)
                 result = config.pack.evaluate_case(
@@ -184,38 +202,101 @@ class StudioOrchestrator:
                     completion=completion,
                     config=config,
                 )
-                self.storage.write_case_result(result)
+
+                # 4. Thread-safe case completion events
+                with self.lock:
+                    self.storage.write_case_result(result)
+                    self.storage.append_event(
+                        StudioEvent(
+                            event_type="case.completed",
+                            run_id=run_definition.run_id,
+                            payload={
+                                "groupId": group.group_id,
+                                "caseId": case.case_id,
+                                "status": result.status.value,
+                            },
+                        )
+                    )
+                    summary.status = StudioRunStatus.RUNNING_PROTOCOL
+                    self.storage.refresh_run_summary_from_cases(summary)
+
+            # Build list of all case tasks
+            tasks = []
+            for group in run_definition.groups:
+                for case in group.cases:
+                    tasks.append((group, case))
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=run_definition.max_parallelism) as executor:
+                futures = [executor.submit(run_case_task, group, case) for group, case in tasks]
+                concurrent.futures.wait(futures)
+                for future in futures:
+                    future.result()  # raises any exceptions occurred in threads
+        else:
+            for group in run_definition.groups:
                 self.storage.append_event(
                     StudioEvent(
-                        event_type="case.completed",
+                        event_type="group.started",
                         run_id=run_definition.run_id,
-                        payload={
-                            "groupId": group.group_id,
-                            "caseId": case.case_id,
-                            "status": result.status.value,
-                        },
+                        payload={"groupId": group.group_id},
                     )
                 )
-                summary.status = StudioRunStatus.RUNNING_PROTOCOL
-                self.storage.refresh_run_summary_from_cases(summary)
 
-        summary.status = (
-            StudioRunStatus.COMPLETED
-            if summary.failed_cases == 0
-            else StudioRunStatus.FAILED_PROTOCOL
-        )
-        self.storage.refresh_run_summary_from_cases(summary)
-        self.storage.append_event(
-            StudioEvent(
-                event_type="run.completed",
-                run_id=run_definition.run_id,
-                payload={
-                    "completedCases": summary.completed_cases,
-                    "failedCases": summary.failed_cases,
-                    "status": summary.status.value,
-                },
+                for case in group.cases:
+                    self.storage.update_case_status(
+                        run_definition.run_id,
+                        group.group_id,
+                        case.case_id,
+                        StudioRunStatus.RUNNING_PROTOCOL.value,
+                    )
+                    self.storage.append_event(
+                        StudioEvent(
+                            event_type="case.started",
+                            run_id=run_definition.run_id,
+                            payload={"groupId": group.group_id, "caseId": case.case_id},
+                        )
+                    )
+
+                    completion = completion_provider(case)
+                    config = self.protocol_registry.resolve_for_case(run_definition, case)
+                    result = config.pack.evaluate_case(
+                        run_id=run_definition.run_id,
+                        selection=case,
+                        completion=completion,
+                        config=config,
+                    )
+                    self.storage.write_case_result(result)
+                    self.storage.append_event(
+                        StudioEvent(
+                            event_type="case.completed",
+                            run_id=run_definition.run_id,
+                            payload={
+                                "groupId": group.group_id,
+                                "caseId": case.case_id,
+                                "status": result.status.value,
+                            },
+                        )
+                    )
+                    summary.status = StudioRunStatus.RUNNING_PROTOCOL
+                    self.storage.refresh_run_summary_from_cases(summary)
+
+        with self.lock:
+            summary.status = (
+                StudioRunStatus.COMPLETED
+                if summary.failed_cases == 0
+                else StudioRunStatus.FAILED_PROTOCOL
             )
-        )
+            self.storage.refresh_run_summary_from_cases(summary)
+            self.storage.append_event(
+                StudioEvent(
+                    event_type="run.completed",
+                    run_id=run_definition.run_id,
+                    payload={
+                        "completedCases": summary.completed_cases,
+                        "failedCases": summary.failed_cases,
+                        "status": summary.status.value,
+                    },
+                )
+            )
         return plan
 
 

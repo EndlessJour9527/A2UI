@@ -325,7 +325,7 @@ class StudioStorage:
         summary.history = history
         summary.status = StudioRunStatus.PREPARING
         
-        self.write_json(summary_path, summary)
+        self.update_run_summary(summary)
 
         self.append_event(
             StudioEvent(
