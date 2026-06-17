@@ -20,6 +20,7 @@ import {useEffect} from 'react';
 import {CopilotKitProvider} from '@copilotkit/react-core/v2';
 import {WidgetsProvider} from '@/contexts/widgets-context';
 import {SpecVersionProvider} from '@/contexts/spec-version-context';
+import {LanguageProvider} from '@/contexts/language-context';
 import {Sidebar} from './sidebar';
 
 interface AppShellProps {
@@ -90,8 +91,9 @@ export function AppShell({children}: AppShellProps) {
 
   return (
     <CopilotKitProvider runtimeUrl="/api/copilotkit" showDevConsole="auto">
-      <SpecVersionProvider>
-        <WidgetsProvider>
+      <LanguageProvider>
+        <SpecVersionProvider>
+          <WidgetsProvider>
           <div className="relative flex h-screen overflow-hidden bg-palette-surface-main p-2">
             {/* Background blur circles - Glassy effect from theater */}
             {/* Ellipse 1351 - Orange glow top right */}
@@ -144,8 +146,9 @@ export function AppShell({children}: AppShellProps) {
               <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
             </div>
           </div>
-        </WidgetsProvider>
-      </SpecVersionProvider>
+          </WidgetsProvider>
+        </SpecVersionProvider>
+      </LanguageProvider>
     </CopilotKitProvider>
   );
 }

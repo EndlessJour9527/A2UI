@@ -21,6 +21,7 @@ import {cn} from '@/lib/utils';
 import {ExternalLink, Copy, Check} from 'lucide-react';
 import {A2UIViewer} from '@/lib/a2ui';
 import {useSpecVersion} from '@/contexts/spec-version-context';
+import {useTranslation} from '@/contexts/language-context';
 import type {A2UIComponent, SpecVersion} from '@/types/widget';
 
 // 100 most important Material Icons for common UI patterns
@@ -212,6 +213,7 @@ export default function IconsPage() {
   const {specVersion} = useSpecVersion();
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const {t} = useTranslation();
 
   const handleCopy = async (name: string) => {
     const code = `{ "Icon": { "name": { "literalString": "${name}" } } }`;
@@ -224,9 +226,9 @@ export default function IconsPage() {
     <div className="flex-1 overflow-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Icons</h1>
+          <h1 className="text-2xl font-semibold">{t('icons.title', 'Icons')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            A2UI uses Material Icons. Showing 100 most commonly used icons.
+            {t('icons.subtitle', 'A2UI uses Material Icons. Showing 100 most commonly used icons.')}
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -238,12 +240,12 @@ export default function IconsPage() {
               {copied ? (
                 <>
                   <Check className="h-4 w-4" />
-                  Copied!
+                  {t('icons.copied', 'Copied!')}
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4" />
-                  Copy &quot;{selectedIcon}&quot;
+                  {t('icons.copy', 'Copy')} &quot;{selectedIcon}&quot;
                 </>
               )}
             </button>
@@ -254,7 +256,7 @@ export default function IconsPage() {
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
-            Browse all icons
+            {t('icons.browse_all', 'Browse all icons')}
             <ExternalLink className="h-4 w-4" />
           </a>
         </div>

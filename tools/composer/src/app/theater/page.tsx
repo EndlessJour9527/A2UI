@@ -34,6 +34,7 @@ import {
 import {useStreamingPlayer} from '@/components/theater/useStreamingPlayer';
 import {useA2UISurface} from '@/components/theater/useA2UISurface';
 import {A2UIViewer} from '@/lib/a2ui';
+import {useTranslation} from '@/contexts/language-context';
 import {Button} from '@/components/ui/button';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable';
 import {scenarios, ScenarioId} from '@/data/theater';
@@ -68,6 +69,7 @@ function formatBytes(bytes: number): string {
 
 export default function TheaterPage() {
   const [mounted, setMounted] = useState(false);
+  const {t} = useTranslation();
   const [leftTab, setLeftTab] = useState<LeftTab>('data');
   const [mobileView, setMobileView] = useState<'left' | 'renderer'>('renderer');
   const [renderer, setRenderer] = useState<RendererType>(RENDERERS[0]);
@@ -172,9 +174,9 @@ export default function TheaterPage() {
       <header className="relative z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 md:px-6 backdrop-blur-md">
         <div className="hidden md:flex items-center gap-1 rounded-xl bg-muted/50 p-1 shadow-inner border border-border/50">
           {[
-            {id: 'events' as LeftTab, icon: Activity, label: 'Events'},
-            {id: 'data' as LeftTab, icon: Database, label: 'Data'},
-            {id: 'config' as LeftTab, icon: Settings, label: 'Config'},
+            {id: 'events' as LeftTab, icon: Activity, label: t('theater.events', 'Events')},
+            {id: 'data' as LeftTab, icon: Database, label: t('theater.data', 'Data')},
+            {id: 'config' as LeftTab, icon: Settings, label: t('theater.config', 'Config')},
           ].map(tab => (
             <Button
               key={tab.id}
@@ -264,7 +266,7 @@ export default function TheaterPage() {
           {playbackState === 'playing' && (
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              Streaming
+              {t('theater.streaming_label', 'Streaming')}
             </span>
           )}
           <span className="font-mono tabular-nums">{formatBytes(bytesReceived)}</span>
@@ -284,11 +286,11 @@ export default function TheaterPage() {
               {leftTab === 'events' ? (
                 <div className="flex flex-col gap-2 pb-8">
                   <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Activity className="h-3 w-3 text-primary" /> Lifecycle Events
+                    <Activity className="h-3 w-3 text-primary" /> {t('theater.lifecycle_events', 'Lifecycle Events')}
                   </h2>
                   {visibleEvents.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">
-                      Press play to see events...
+                      {t('theater.waiting_events', 'Press play to see events...')}
                     </p>
                   )}
                   {visibleEvents.map((evt, i) => (
@@ -333,11 +335,11 @@ export default function TheaterPage() {
                 /* DATA TAB — real JSONL chunks as they arrive over the wire */
                 <div className="flex flex-col gap-2 pb-8">
                   <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Database className="h-3 w-3 text-amber-500" /> JSONL Stream
+                    <Database className="h-3 w-3 text-amber-500" /> {t('theater.jsonl_stream', 'JSONL Stream')}
                   </h2>
                   {receivedChunks.length === 0 && (
                     <p className="text-xs text-muted-foreground italic">
-                      Press play to stream JSONL chunks...
+                      {t('theater.waiting_play', 'Press play to stream JSONL chunks...')}
                     </p>
                   )}
                   {receivedChunks.map((chunk, i) => (
@@ -384,7 +386,7 @@ export default function TheaterPage() {
                   {playbackState === 'playing' && progress < totalChunks && (
                     <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
                       <span className="w-1.5 h-3 bg-primary animate-pulse rounded-sm" />
-                      <span>Waiting for next chunk...</span>
+                      <span>{t('theater.waiting_chunks', 'Waiting for next chunk...')}</span>
                     </div>
                   )}
                   <div ref={dataEndRef} className="h-2" />
@@ -393,11 +395,11 @@ export default function TheaterPage() {
                 /* CONFIG TAB */
                 <div className="space-y-5">
                   <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 mb-2">
-                    <Settings className="h-3 w-3" /> Configuration
+                    <Settings className="h-3 w-3" /> {t('theater.configuration', 'Configuration')}
                   </h2>
                   <div className="rounded-lg border border-border/50 bg-card p-4 shadow-sm space-y-2">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-primary" /> Scenario
+                      <Activity className="h-4 w-4 text-primary" /> {t('theater.scenario', 'Scenario')}
                     </h3>
                     <div className="relative">
                       <select
@@ -419,7 +421,7 @@ export default function TheaterPage() {
                   </div>
                   <div className="rounded-lg border border-border/50 bg-card p-4 shadow-sm space-y-2">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Monitor className="h-4 w-4 text-primary" /> Renderer
+                      <Monitor className="h-4 w-4 text-primary" /> {t('theater.renderer', 'Renderer')}
                     </h3>
                     <div className="relative">
                       <select
@@ -438,7 +440,7 @@ export default function TheaterPage() {
                   </div>
                   <div className="rounded-lg border border-border/50 bg-card p-4 shadow-sm space-y-2">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-primary" /> Transport
+                      <Zap className="h-4 w-4 text-primary" /> {t('theater.transport', 'Transport')}
                     </h3>
                     <div className="relative">
                       <select className="w-full text-sm p-2 pl-3 pr-8 border border-border/50 rounded-lg bg-background appearance-none shadow-sm cursor-pointer">
@@ -450,7 +452,7 @@ export default function TheaterPage() {
                       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Simulated in-memory playback.
+                      {t('theater.simulated_playback', 'Simulated in-memory playback.')}
                     </p>
                   </div>
                 </div>
@@ -506,7 +508,7 @@ export default function TheaterPage() {
                             {'<A2UIRenderer />'}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            Press play to start streaming
+                            {t('theater.press_play_start', 'Press play to start streaming')}
                           </p>
                         </div>
                       </div>

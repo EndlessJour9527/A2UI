@@ -27,6 +27,7 @@ import {WidgetPreviewModal} from '@/components/gallery/widget-preview-modal';
 import {Widget} from '@/types/widget';
 import {useWidgets} from '@/contexts/widgets-context';
 import {useSpecVersion} from '@/contexts/spec-version-context';
+import {useTranslation} from '@/contexts/language-context';
 import {V08_GALLERY_WIDGETS, V09_GALLERY_WIDGETS} from '@/data/gallery';
 
 export default function GalleryPage() {
@@ -34,6 +35,7 @@ export default function GalleryPage() {
   const {addWidget} = useWidgets();
   const router = useRouter();
   const {specVersion, isLoaded} = useSpecVersion();
+  const {t} = useTranslation();
 
   const galleryWidgets = specVersion === '0.9' ? V09_GALLERY_WIDGETS : V08_GALLERY_WIDGETS;
 
@@ -44,7 +46,7 @@ export default function GalleryPage() {
     const newWidget: Widget = {
       ...selectedWidget,
       id: crypto.randomUUID(),
-      name: `${selectedWidget.name} (Copy)`,
+      name: `${selectedWidget.name} ${t('gallery.widget_copy_suffix', '(Copy)')}`,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -59,7 +61,7 @@ export default function GalleryPage() {
 
   return (
     <div className="flex-1 overflow-auto p-6">
-      <h1 className="mb-6 text-2xl font-semibold">Gallery</h1>
+      <h1 className="mb-6 text-2xl font-semibold">{t('gallery.title', 'Gallery')}</h1>
       <div
         className="columns-1 gap-4 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5"
         style={{columnWidth: '308px'}}

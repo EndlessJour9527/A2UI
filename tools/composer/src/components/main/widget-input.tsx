@@ -16,6 +16,8 @@
 
 'use client';
 
+import {useTranslation} from '@/contexts/language-context';
+
 interface WidgetInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -24,6 +26,7 @@ interface WidgetInputProps {
 }
 
 export function WidgetInput({value, onChange, onSubmit, disabled}: WidgetInputProps) {
+  const {t} = useTranslation();
   const hasText = value.trim().length > 0;
   const canSubmit = hasText && !disabled;
 
@@ -40,7 +43,7 @@ export function WidgetInput({value, onChange, onSubmit, disabled}: WidgetInputPr
         value={value}
         onChange={e => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Describe your A2UI widget..."
+        placeholder={t('create.input_placeholder', 'Describe your A2UI widget...')}
         className="flex-1 resize-none bg-transparent text-base outline-none placeholder:text-muted-foreground/50 min-h-[36px] max-h-[120px] py-1.5"
         rows={1}
         autoFocus
@@ -62,7 +65,7 @@ export function WidgetInput({value, onChange, onSubmit, disabled}: WidgetInputPr
           }
         `}
       >
-        Create
+        {t('nav.create', 'Create')}
       </button>
     </div>
   );

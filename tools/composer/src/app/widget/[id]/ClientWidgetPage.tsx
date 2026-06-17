@@ -18,14 +18,16 @@
 
 import {WidgetEditor} from '@/components/editor/widget-editor';
 import {useWidgets} from '@/contexts/widgets-context';
+import {useTranslation} from '@/contexts/language-context';
 
 export function ClientWidgetPage({id}: {id: string}) {
   const {loading, getWidget} = useWidgets();
+  const {t} = useTranslation();
 
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="text-muted-foreground">Loading...</div>
+        <div className="text-muted-foreground">{t('editor.loading', 'Loading...')}</div>
       </div>
     );
   }
@@ -35,7 +37,7 @@ export function ClientWidgetPage({id}: {id: string}) {
   if (!widget) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <div className="text-muted-foreground">Widget not found</div>
+        <div className="text-muted-foreground">{t('editor.widget_not_found', 'Widget not found')}</div>
       </div>
     );
   }

@@ -21,6 +21,7 @@ import {X, RotateCcw, ExternalLink} from 'lucide-react';
 import {Widget} from '@/types/widget';
 import {Button} from '@/components/ui/button';
 import {A2UIViewer} from '@/lib/a2ui';
+import {useTranslation} from '@/contexts/language-context';
 import Editor from '@monaco-editor/react';
 
 interface WidgetPreviewModalProps {
@@ -30,6 +31,7 @@ interface WidgetPreviewModalProps {
 }
 
 export function WidgetPreviewModal({widget, onClose, onOpenInEditor}: WidgetPreviewModalProps) {
+  const {t} = useTranslation();
   // Get the actual A2UI JSON
   const componentsJson = JSON.stringify(widget.components, null, 2);
   const dataJson = JSON.stringify(widget.dataStates?.[0]?.data ?? {}, null, 2);
@@ -57,7 +59,7 @@ export function WidgetPreviewModal({widget, onClose, onOpenInEditor}: WidgetPrev
         <div className="flex flex-1 flex-col">
           {/* Header */}
           <div className="flex items-center gap-3 border-b border-border bg-white px-4 h-10 shrink-0">
-            <button className="p-1 rounded-md hover:bg-muted" title="Reset preview">
+            <button className="p-1 rounded-md hover:bg-muted" title={t('gallery.reset_preview', 'Reset preview')}>
               <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
             <span className="text-xs font-medium text-muted-foreground">{widget.name}</span>
@@ -69,7 +71,7 @@ export function WidgetPreviewModal({widget, onClose, onOpenInEditor}: WidgetPrev
               onClick={onOpenInEditor}
             >
               <ExternalLink className="h-3 w-3" />
-              Open in widget editor
+              {t('gallery.open_in_editor', 'Open in widget editor')}
             </Button>
           </div>
 
@@ -88,7 +90,7 @@ export function WidgetPreviewModal({widget, onClose, onOpenInEditor}: WidgetPrev
         <div className="w-1/2 border-l border-border flex flex-col">
           {/* Header for Components */}
           <div className="flex items-center border-b border-border bg-white px-4 h-10 shrink-0">
-            <span className="text-xs font-medium text-muted-foreground">Components</span>
+            <span className="text-xs font-medium text-muted-foreground">{t('gallery.components', 'Components')}</span>
             <div className="flex-1" />
             <button onClick={onClose} className="p-1 rounded-md hover:bg-muted">
               <X className="h-3.5 w-3.5 text-muted-foreground" />
@@ -126,7 +128,7 @@ export function WidgetPreviewModal({widget, onClose, onOpenInEditor}: WidgetPrev
           {/* Data section */}
           <div className="h-1/3 flex flex-col border-t border-border">
             <div className="px-4 py-1.5 bg-white border-b border-border shrink-0">
-              <span className="text-xs font-medium text-muted-foreground">Data</span>
+              <span className="text-xs font-medium text-muted-foreground">{t('gallery.data', 'Data')}</span>
             </div>
             <div className="flex-1 min-h-0">
               <Editor

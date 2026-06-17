@@ -29,6 +29,7 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import {cn} from '@/lib/utils';
+import {useTranslation} from '@/contexts/language-context';
 
 interface NavItemProps {
   icon: LucideIcon;
@@ -69,18 +70,29 @@ interface SidebarNavProps {
 
 export function SidebarNav({onNavigate}: SidebarNavProps) {
   const pathname = usePathname();
+  const {t} = useTranslation();
 
   const navItems = [
-    {icon: SquarePlus, label: 'Create', href: '/'},
-    {icon: Play, label: 'Theater', subtitle: 'A2UI Playground', href: '/theater'},
-    {icon: FlaskConical, label: 'Studio', href: '/studio', subtitle: 'Evaluation Studio'},
-    {icon: LayoutGrid, label: 'Gallery', href: '/gallery'},
-    {icon: Box, label: 'Components', href: '/components'},
-    {icon: Shapes, label: 'Icons', href: '/icons'},
+    {icon: SquarePlus, label: t('nav.create', 'Create'), href: '/'},
+    {
+      icon: Play,
+      label: t('nav.theater', 'Theater'),
+      subtitle: t('nav.theater.subtitle', 'A2UI Playground'),
+      href: '/theater',
+    },
+    {
+      icon: FlaskConical,
+      label: t('nav.studio', 'Studio'),
+      href: '/studio',
+      subtitle: t('nav.studio.subtitle', 'Evaluation Studio'),
+    },
+    {icon: LayoutGrid, label: t('nav.gallery', 'Gallery'), href: '/gallery'},
+    {icon: Box, label: t('nav.components', 'Components'), href: '/components'},
+    {icon: Shapes, label: t('nav.icons', 'Icons'), href: '/icons'},
     {
       icon: BookOpen,
-      label: 'Tutorial',
-      subtitle: 'CopilotKit + A2UI',
+      label: t('nav.tutorial', 'Tutorial'),
+      subtitle: t('nav.tutorial.subtitle', 'CopilotKit + A2UI'),
       external: true,
       href: 'https://docs.copilotkit.ai/a2a/generative-ui/declarative-a2ui',
     },

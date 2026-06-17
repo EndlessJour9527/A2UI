@@ -17,12 +17,36 @@
 'use client';
 
 import Link from 'next/link';
-import {FlaskConical, FolderTree, RefreshCw, ArrowRight, FilePlus2} from 'lucide-react';
+import {FlaskConical, FolderTree, RefreshCw, ArrowRight, FilePlus2, Trash2} from 'lucide-react';
 import {useStudio} from '@/contexts/studio-context';
 import {Button} from '@/components/ui/button';
+import {useTranslation} from '@/contexts/language-context';
 
 export default function StudioPage() {
   const {loading, runs, groups, cases, refresh} = useStudio();
+  const {t} = useTranslation();
+
+  const handleDeleteRun = async (runId: string) => {
+    if (
+      !confirm(
+        t('studio.confirm_delete_run', 'Are you sure you want to delete this run? All execution data, results, and logs for this run will be permanently deleted.')
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/studio/runs/${runId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to delete run: ${res.statusText}`);
+      }
+      void refresh();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to delete run');
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-auto p-6 md:p-8">
@@ -33,55 +57,53 @@ export default function StudioPage() {
               <FlaskConical className="h-3.5 w-3.5" />
               Eval Studio MVP
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">Runs overview</h1>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t('studio.runs_overview', 'Runs overview')}</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              First implementation of the local GenUI Eval Studio control plane. It reads the
-              filesystem-backed run/index skeleton produced under <code>.genui-eval-studio/</code>
-              and provides a review-first UI for runs, groups, and cases.
+              {t('studio.description', 'First implementation of the local GenUI Eval Studio control plane. It reads the filesystem-backed run/index skeleton produced under .genui-eval-studio/ and provides a review-first UI for runs, groups, and cases.')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 self-start md:self-auto">
             <Button variant="outline" onClick={() => void refresh()} className="gap-2">
               <RefreshCw className="h-4 w-4" />
-              Refresh
+              {t('studio.refresh', 'Refresh')}
             </Button>
             <Button asChild className="gap-2">
               <Link href="/studio/create">
                 <FilePlus2 className="h-4 w-4" />
-                Create run
+                {t('studio.create_run', 'Create run')}
               </Link>
             </Button>
           </div>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <SummaryCard label="Runs" value={runs.length} helpText="Materialized run summaries" />
-          <SummaryCard label="Groups" value={groups.length} helpText="Indexed test-set groups" />
-          <SummaryCard label="Cases" value={cases.length} helpText="Selectable review items" />
+          <SummaryCard label={t('studio.runs_card', 'Runs')} value={runs.length} helpText={t('studio.runs_card_help', 'Materialized run summaries')} />
+          <SummaryCard label={t('studio.groups_card', 'Groups')} value={groups.length} helpText={t('studio.groups_card_help', 'Indexed test-set groups')} />
+          <SummaryCard label={t('studio.cases_card', 'Cases')} value={cases.length} helpText={t('studio.cases_card_help', 'Selectable review items')} />
         </section>
 
         <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold">Recent runs</h2>
+              <h2 className="text-lg font-semibold">{t('studio.recent_runs', 'Recent runs')}</h2>
               <p className="text-sm text-muted-foreground">
-                Create a run from Excel, open it here, then start execution from the run controls.
+                {t('studio.recent_runs_desc', 'Create a run from Excel, open it here, then start execution from the run controls.')}
               </p>
             </div>
           </div>
 
           {loading ? (
-            <div className="py-10 text-sm text-muted-foreground">Loading studio indexes…</div>
+            <div className="py-10 text-sm text-muted-foreground">{t('studio.loading_studio', 'Loading studio indexes…')}</div>
           ) : runs.length === 0 ? (
-            <EmptyState />
+            <EmptyState t={t} />
           ) : (
             <div className="overflow-hidden rounded-2xl border border-border/60">
               <div className="grid grid-cols-[1.8fr_0.9fr_0.8fr_0.8fr_0.7fr_0.9fr] gap-3 border-b bg-muted/40 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <span>Run</span>
-                <span>Status</span>
-                <span>Groups</span>
-                <span>Cases</span>
-                <span>Failed</span>
+                <span>{t('studio.th_run', 'Run')}</span>
+                <span>{t('studio.th_status', 'Status')}</span>
+                <span>{t('studio.th_groups', 'Groups')}</span>
+                <span>{t('studio.th_cases', 'Cases')}</span>
+                <span>{t('studio.th_failed', 'Failed')}</span>
                 <span />
               </div>
               {runs.map(run => (
@@ -96,18 +118,26 @@ export default function StudioPage() {
                       {run.protocol_profile_id ? ` · ${run.protocol_profile_id}` : ''} · {run.renderer}
                     </div>
                   </div>
-                  <StatusPill status={run.status} />
+                  <StatusPill status={run.status} t={t} />
                   <span className="text-muted-foreground">{run.group_ids.length}</span>
                   <span className="text-muted-foreground">{run.completed_cases}/{run.total_cases}</span>
                   <span className="text-muted-foreground">{run.failed_cases}</span>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end items-center gap-4">
                     <Link
                       href={`/studio/run/${run.run_id}`}
                       className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                     >
-                      Open
+                      {t('studio.btn_open', 'Open')}
                       <ArrowRight className="h-4 w-4" />
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteRun(run.run_id)}
+                      className="inline-flex items-center text-muted-foreground hover:text-rose-600 transition-colors"
+                      title={t('studio.btn_delete_title', 'Delete run')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -137,19 +167,19 @@ function SummaryCard({
   );
 }
 
-function EmptyState() {
+function EmptyState({t}: {t: (key: string, def?: string) => string}) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 py-12 text-center">
       <FolderTree className="h-10 w-10 text-muted-foreground" />
       <div>
-        <div className="font-medium text-foreground">No local Eval Studio runs yet</div>
+        <div className="font-medium text-foreground">{t('studio.no_local_runs', 'No local Eval Studio runs yet')}</div>
         <div className="mt-1 text-sm text-muted-foreground">
-          Create a run from an Excel test set to initialize the local filesystem workspace.
+          {t('studio.no_local_runs_desc', 'Create a run from an Excel test set to initialize the local filesystem workspace.')}
         </div>
         <Button asChild className="mt-2 gap-2">
           <Link href="/studio/create">
             <FilePlus2 className="h-4 w-4" />
-            Create run
+            {t('studio.create_run', 'Create run')}
           </Link>
         </Button>
       </div>
@@ -157,7 +187,7 @@ function EmptyState() {
   );
 }
 
-function StatusPill({status}: {status: string}) {
+function StatusPill({status, t}: {status: string; t: (key: string, def?: string) => string}) {
   const tone =
     status === 'completed'
       ? 'bg-emerald-500/10 text-emerald-700'
@@ -165,9 +195,16 @@ function StatusPill({status}: {status: string}) {
         ? 'bg-rose-500/10 text-rose-700'
         : 'bg-amber-500/10 text-amber-700';
 
+  const localizedStatus =
+    status === 'completed'
+      ? t('studio.status.completed', 'completed')
+      : status.startsWith('failed')
+        ? t('studio.status.failed', 'failed')
+        : t('studio.status.running', 'running');
+
   return (
     <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>
-      {status}
+      {localizedStatus}
     </span>
   );
 }

@@ -23,6 +23,7 @@ import {COMPONENTS_DATA_V09} from '@/lib/components-data-v09';
 import type {ComponentDoc} from '@/lib/components-data';
 import {A2UIViewer} from '@/lib/a2ui';
 import {useSpecVersion} from '@/contexts/spec-version-context';
+import {useTranslation} from '@/contexts/language-context';
 import type {SpecVersion} from '@/types/widget';
 
 function ComponentSidebar({
@@ -65,6 +66,7 @@ function ComponentSidebar({
 
 function UsageBlock({code}: {code: string}) {
   const [copied, setCopied] = useState(false);
+  const {t} = useTranslation();
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -78,7 +80,7 @@ function UsageBlock({code}: {code: string}) {
       <button
         onClick={handleCopy}
         className="absolute right-3 top-3 p-1.5 rounded hover:bg-muted"
-        title="Copy to clipboard"
+        title={t('components.copy_to_clipboard', 'Copy to clipboard')}
       >
         <svg
           className="h-4 w-4 text-muted-foreground"
@@ -95,7 +97,7 @@ function UsageBlock({code}: {code: string}) {
         </svg>
       </button>
       {copied && (
-        <span className="absolute right-10 top-3.5 text-xs text-muted-foreground">Copied!</span>
+        <span className="absolute right-10 top-3.5 text-xs text-muted-foreground">{t('components.copied', 'Copied!')}</span>
       )}
     </div>
   );
@@ -117,14 +119,15 @@ function PropValues({values}: {values: string[]}) {
 }
 
 function PropsTable({component}: {component: ComponentDoc}) {
+  const {t} = useTranslation();
   return (
     <div className="border border-border rounded-lg overflow-hidden bg-white">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-neutral-50">
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground w-40">Name</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
-            <th className="text-left px-4 py-3 font-medium text-muted-foreground w-24">Default</th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground w-40">{t('components.prop_name', 'Name')}</th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('components.prop_desc', 'Description')}</th>
+            <th className="text-left px-4 py-3 font-medium text-muted-foreground w-24">{t('components.prop_default', 'Default')}</th>
           </tr>
         </thead>
         <tbody>
@@ -172,13 +175,14 @@ function ComponentPreview({
   component: ComponentDoc;
   specVersion: SpecVersion;
 }) {
+  const {t} = useTranslation();
   if (!component.preview) {
     return null;
   }
 
   return (
     <div className="mb-8">
-      <h2 className="text-xl font-semibold mb-4">Preview</h2>
+      <h2 className="text-xl font-semibold mb-4">{t('components.preview', 'Preview')}</h2>
       <div className="rounded-lg border border-border bg-neutral-50 p-6">
         <A2UIViewer
           root={component.preview.root}
@@ -199,6 +203,7 @@ function ComponentContent({
   component: ComponentDoc;
   specVersion: SpecVersion;
 }) {
+  const {t} = useTranslation();
   return (
     <div className="flex-1 overflow-auto p-8">
       <h1 className="text-3xl font-semibold mb-2">{component.name}</h1>
@@ -206,10 +211,10 @@ function ComponentContent({
 
       <ComponentPreview component={component} specVersion={specVersion} />
 
-      <h2 className="text-xl font-semibold mb-4">Usage</h2>
+      <h2 className="text-xl font-semibold mb-4">{t('components.usage', 'Usage')}</h2>
       <UsageBlock code={component.usage} />
 
-      <h2 className="text-xl font-semibold mt-8 mb-4">Props</h2>
+      <h2 className="text-xl font-semibold mt-8 mb-4">{t('components.props', 'Props')}</h2>
       <PropsTable component={component} />
     </div>
   );

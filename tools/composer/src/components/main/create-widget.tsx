@@ -24,6 +24,7 @@ import {z} from 'zod';
 import {WidgetInput} from './widget-input';
 import {useWidgets} from '@/contexts/widgets-context';
 import {useSpecVersion} from '@/contexts/spec-version-context';
+import {useTranslation} from '@/contexts/language-context';
 import type {Widget} from '@/types/widget';
 import type {A2UIComponent} from '@/types/widget';
 import {parseRobustJSON} from '@/lib/json-parser';
@@ -66,6 +67,7 @@ export function CreateWidget() {
   const router = useRouter();
   const {addWidget} = useWidgets();
   const {specVersion} = useSpecVersion();
+  const {t} = useTranslation();
   const agentId = specVersion === '0.9' ? 'v09' : 'v08';
   const {agent} = useAgent({agentId});
   const {copilotkit} = useCopilotKit();
@@ -138,11 +140,11 @@ export function CreateWidget() {
               <span>
                 {isGenerating ? (
                   <>
-                    Creating: <span className="font-semibold">{args?.name || 'Widget'}</span>
+                    {t('create.creating', 'Creating:')} <span className="font-semibold">{args?.name || 'Widget'}</span>
                   </>
                 ) : (
                   <>
-                    Created: <span className="font-semibold">{args?.name || 'Widget'}</span>
+                    {t('create.created', 'Created:')} <span className="font-semibold">{args?.name || 'Widget'}</span>
                   </>
                 )}
               </span>
@@ -269,17 +271,17 @@ export function CreateWidget() {
 
   return (
     <div className="flex w-full flex-col items-center gap-4 px-4">
-      <h1 className="text-4xl font-extralight tracking-tight">What would you like to build?</h1>
+      <h1 className="text-4xl font-extralight tracking-tight">{t('create.title', 'What would you like to build?')}</h1>
       <WidgetInput
         value={inputValue}
         onChange={setInputValue}
         onSubmit={handleCreate}
         disabled={isGenerating}
       />
-      <span className="text-xs text-muted-foreground">Powered by 🪁 CopilotKit</span>
+      <span className="text-xs text-muted-foreground">{t('create.powered_by', 'Powered by 🪁 CopilotKit')}</span>
       {isGenerating ? (
         <span className="mt-4 text-lg text-muted-foreground">
-          Generating widget
+          {t('create.generating', 'Generating widget')}
           <span className="inline-block w-[0.75rem] text-left">{'.'.repeat(dotCount)}</span>
         </span>
       ) : (
@@ -287,7 +289,7 @@ export function CreateWidget() {
           onClick={handleStartBlank}
           className="mt-4 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
         >
-          or <span className="underline">Start Blank</span>
+          {t('create.or', 'or')} <span className="underline">{t('create.start_blank', 'Start Blank')}</span>
         </button>
       )}
     </div>

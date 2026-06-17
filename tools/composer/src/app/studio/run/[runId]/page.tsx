@@ -21,7 +21,7 @@ import {useMemo, use, useState, useEffect, useRef} from 'react';
 import {ArrowLeft, ArrowRight, Layers3, Play, Loader2, ChevronDown, MessageSquare, AlertCircle} from 'lucide-react';
 import {useStudio} from '@/contexts/studio-context';
 import {Button} from '@/components/ui/button';
-import {eventsForLatestExecution} from '@/lib/studio-run-events';
+import {useTranslation} from '@/contexts/language-context';
 
 type CompletionProviderMode = 'mock' | 'static' | 'llm' | 'local-openai' | 'nvidia';
 
@@ -36,6 +36,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
   const resolvedParams = use(params);
   const runId = resolvedParams.runId;
   const {runs, groups, cases, bootstrap, refresh: refreshStudioIndex} = useStudio();
+  const {t} = useTranslation();
   const run = runs.find(item => item.run_id === runId);
   const runGroups = useMemo(() => groups.filter(group => group.runId === runId), [groups, runId]);
   const runCases = useMemo(() => cases.filter(item => item.runId === runId), [cases, runId]);
@@ -394,7 +395,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           <div className="space-y-2">
             <Link href="/studio" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Back to runs
+              {t('studio.run.back_to_runs', 'Back to runs')}
             </Link>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">{run.name}</h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -410,7 +411,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
             </div>
           </div>
           <Button variant="outline" asChild>
-            <Link href="/studio">Open runs index</Link>
+            <Link href="/studio">{t('studio.run.back_to_runs', 'Back to runs')}</Link>
           </Button>
         </div>
 
@@ -423,10 +424,10 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                   {isRunning ? (
                     <span className="flex items-center gap-2 text-primary">
                       <Loader2 className="h-5 w-5 animate-spin" />
-                      Executing Evaluation Run
+                      {t('studio.run.running', 'Running')}
                     </span>
                   ) : (
-                    'Run Controls'
+                    t('studio.run.actions', 'Actions')
                   )}
                 </h2>
 
@@ -457,9 +458,9 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
               <p className="text-sm text-muted-foreground">
                 {isRunning
                   ? currentCaseId
-                    ? `Currently running case: ${currentCaseId}`
-                    : `Status: ${currentStatus}...`
-                  : 'Configure the LLM completion provider and execute this run.'}
+                    ? `${t('studio.run.running', 'Running')} case: ${currentCaseId}`
+                    : `${t('studio.th_status', 'Status')}: ${currentStatus}...`
+                  : t('studio.recent_runs_desc', 'Create a run from Excel, open it here, then start execution from the run controls.')}
               </p>
             </div>
 
@@ -493,7 +494,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                     type="text"
                     disabled={true}
                     value=""
-                    placeholder="No model needed"
+                    placeholder={t('studio.run.no_model_needed', 'No model needed')}
                     className="min-w-0 rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 ) : (
@@ -538,7 +539,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
                   ) : (
                     <Play className="h-4 w-4 fill-current" />
                   )}
-                  Run
+                  {t('studio.run.start_execution', 'Start Execution')}
                 </Button>
               </div>
 
@@ -567,7 +568,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           {isRunning && (
             <div className="mt-6 space-y-3">
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <span>Progress: {completedCount} / {totalCases} cases</span>
+                <span>{t('studio.run.progress', 'Progress:')} {completedCount} / {totalCases} cases</span>
                 <span>{Math.round(progressPercent)}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -585,7 +586,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <div>
-                <span className="font-semibold">Execution failed:</span> {executionError}
+                <span className="font-semibold">{t('studio.run.failed', 'Failed')}:</span> {executionError}
               </div>
             </div>
           </div>
@@ -609,16 +610,16 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
         )}
 
         <section className="grid gap-4 md:grid-cols-4">
-          <MetricCard label="Groups" value={runGroups.length} />
-          <MetricCard label="Cases" value={totalCases} />
-          <MetricCard label="Completed" value={completedCount} />
-          <MetricCard label="Failed" value={failedCount} tone={failedCount > 0 ? 'danger' : 'default'} />
+          <MetricCard label={t('studio.groups_card', 'Groups')} value={runGroups.length} />
+          <MetricCard label={t('studio.cases_card', 'Cases')} value={totalCases} />
+          <MetricCard label={t('studio.run.completed', 'Completed')} value={completedCount} />
+          <MetricCard label={t('studio.run.failed', 'Failed')} value={failedCount} tone={failedCount > 0 ? 'danger' : 'default'} />
         </section>
 
         <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
           <div className="mb-4 flex items-center gap-2">
             <Layers3 className="h-4 w-4 text-primary" />
-            <h2 className="text-lg font-semibold">Groups in this run</h2>
+            <h2 className="text-lg font-semibold">{t('studio.run.groups_list', 'Groups & Cases')}</h2>
           </div>
           <div className="flex flex-col gap-4">
             {runGroups.map(group => {
@@ -738,6 +739,7 @@ export default function StudioRunPage({params}: {params: Promise<{runId: string}
           error={executionError}
           validationErrors={validationErrors}
           onToggle={() => setIsLogPanelCollapsed(value => !value)}
+          t={t}
         />
       )}
     </div>
@@ -751,6 +753,7 @@ function ExecutionLogPanel({
   error,
   validationErrors,
   onToggle,
+  t,
 }: {
   collapsed: boolean;
   isRunning: boolean;
@@ -758,17 +761,18 @@ function ExecutionLogPanel({
   error: string | null;
   validationErrors: string[] | null;
   onToggle: () => void;
+  t: (key: string, def?: string) => string;
 }) {
   const statusText = isRunning
-    ? 'Running'
+    ? t('studio.run.running', 'Running')
     : error || validationErrors
-      ? 'Needs attention'
-      : 'Idle';
+      ? t('studio.run.failed', 'Failed')
+      : t('studio.run.idle', 'Idle');
   const displayLog = log && log.trim().length > 0
     ? log
     : isRunning
-      ? 'Waiting for runner output...'
-      : 'No execution log has been written yet.';
+      ? t('studio.run.waiting_output', 'Waiting for runner output...')
+      : t('studio.run.no_log_written', 'No execution log has been written yet.');
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur">
@@ -781,7 +785,7 @@ function ExecutionLogPanel({
         >
           <span className="flex min-w-0 items-center gap-2 font-semibold text-foreground">
             {isRunning && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-            Execution Log
+            {t('studio.run.log_panel', 'Execution logs')}
             <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
               {statusText}
             </span>

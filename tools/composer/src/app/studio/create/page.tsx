@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {useStudio} from '@/contexts/studio-context';
+import {useTranslation} from '@/contexts/language-context';
 
 interface CreatedRunResult {
   runId: string;
@@ -61,6 +62,7 @@ function buildExecutionProvider(model: string): string {
 
 export default function CreateRunPage() {
   const {refresh, bootstrap} = useStudio();
+  const {t} = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -200,18 +202,17 @@ export default function CreateRunPage() {
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to runs
+            {t('studio.create.back_to_runs', 'Back to runs')}
           </Link>
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
             <Sparkles className="h-3.5 w-3.5" />
             Phase 2 Creator
           </div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            Create run from Excel or JSON
+            {t('studio.create.title', 'Create run from Excel or JSON')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Import an Excel spreadsheet (`.xlsx`) or JSON file (`.json`) to dynamically parse prompts, resolve catalog
-            profiles, and initialize a new test execution run.
+            {t('studio.create.desc', 'Import an Excel spreadsheet (.xlsx) or JSON file (.json) to dynamically parse prompts, resolve catalog profiles, and initialize a new test execution run.')}
           </p>
         </header>
 
@@ -219,7 +220,7 @@ export default function CreateRunPage() {
           <div className="flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-700">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
-              <span className="font-semibold">Creation failed:</span> {error}
+              <span className="font-semibold">{t('studio.create.creation_failed', 'Creation failed:')}</span> {error}
             </div>
           </div>
         )}
@@ -228,7 +229,7 @@ export default function CreateRunPage() {
           <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-800">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <div>
-              <span className="font-semibold">Run created, but automatic execution did not start:</span>{' '}
+              <span className="font-semibold">{t('studio.create.auto_start_failed', 'Run created, but automatic execution did not start:')}</span>{' '}
               {executionStartError}
             </div>
           </div>
@@ -237,7 +238,7 @@ export default function CreateRunPage() {
         {!createdRun ? (
           <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-3">
             <div className="md:col-span-2 space-y-6 rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
-              <h2 className="text-lg font-semibold">1. Select Test Set Spreadsheet or JSON</h2>
+              <h2 className="text-lg font-semibold">{t('studio.create.step1_title', '1. Select Test Set Spreadsheet or JSON')}</h2>
 
               <div
                 onDragEnter={handleDrag}
@@ -271,7 +272,7 @@ export default function CreateRunPage() {
                         {file.name}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {(file.size / 1024).toFixed(1)} KB · File ready
+                        {(file.size / 1024).toFixed(1)} KB · {t('studio.create.file_ready', 'File ready')}
                       </div>
                     </div>
                   </>
@@ -282,25 +283,25 @@ export default function CreateRunPage() {
                     </div>
                     <div>
                       <div className="font-medium text-foreground">
-                        Drag and drop your Excel or JSON file here
+                        {t('studio.create.drag_drop_placeholder', 'Drag and drop your Excel or JSON file here')}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Supports standard .xlsx test sheets or .json files
+                        {t('studio.create.drag_drop_subtitle', 'Supports standard .xlsx test sheets or .json files')}
                       </div>
                     </div>
                   </>
                 )}
                 <Button type="button" variant="outline" size="sm" className="pointer-events-none">
-                  {file ? 'Change file' : 'Browse files'}
+                  {file ? t('studio.create.change_file', 'Change file') : t('studio.create.browse_files', 'Browse files')}
                 </Button>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">Run metadata</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t('studio.create.run_metadata', 'Run metadata')}</h3>
                 <div className="grid gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Run Name <span className="text-rose-500">*</span>
+                      {t('studio.create.run_name', 'Run Name')} <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -316,12 +317,12 @@ export default function CreateRunPage() {
             </div>
 
             <div className="space-y-6 rounded-3xl border border-white/70 bg-white/70 p-6 shadow-sm backdrop-blur-sm">
-              <h2 className="text-lg font-semibold">2. Configuration</h2>
+              <h2 className="text-lg font-semibold">{t('studio.create.step2_title', '2. Configuration')}</h2>
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Target Model <span className="text-rose-500">*</span>
+                    {t('studio.create.model', 'Model')} <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={modelType}
@@ -357,7 +358,7 @@ export default function CreateRunPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Grading Model
+                    {t('studio.create.grading_model', 'Grading Model')}
                   </label>
                   <select
                     value={gradingModelType}
@@ -393,7 +394,7 @@ export default function CreateRunPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Catalog Profile
+                    {t('studio.create.catalog_profile_id', 'Catalog Profile ID')}
                   </label>
                   <select
                     value={catalogProfileId}
@@ -407,7 +408,7 @@ export default function CreateRunPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Execution Mode
+                    {t('studio.create.execution_mode_label', 'Execution Mode')}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -439,10 +440,10 @@ export default function CreateRunPage() {
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Creating and starting...
+                      {t('studio.create.btn_create', 'Create & Execute')}...
                     </>
                   ) : (
-                    'Create and Run'
+                    t('studio.create.btn_create', 'Create & Execute')
                   )}
                 </Button>
               </div>
@@ -454,14 +455,13 @@ export default function CreateRunPage() {
               <CheckCircle2 className="h-6 w-6" />
               <div>
                 <h2 className="text-xl font-semibold">
-                  {createdRun.executionStarted
-                    ? 'Run successfully initialized and started!'
-                    : 'Run successfully initialized!'}
+                  {t('studio.create.success_title', 'Run created successfully!')}
                 </h2>
                 <p className="text-sm text-emerald-700/80">
+                  {t('studio.create.success_desc', 'The run skeleton has been initialized and registered on the local control plane.')}{' '}
                   {createdRun.executionStarted
-                    ? 'Spreadsheet parsed, filesystem layout created, and execution launched.'
-                    : 'Spreadsheet parsed and filesystem layout created.'}
+                    ? t('studio.create.success_active', 'Execution is active in the background.')
+                    : t('studio.create.success_inactive', 'Execution is NOT currently active.')}
                 </p>
               </div>
             </div>
@@ -472,12 +472,12 @@ export default function CreateRunPage() {
                 <div className="font-semibold truncate">{createdRun.runId}</div>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Groups</span>
-                <div className="font-semibold">{createdRun.groupsCount} groups</div>
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">{t('studio.th_groups', 'Groups')}</span>
+                <div className="font-semibold">{createdRun.groupsCount} {t('studio.create.success_groups', 'groups')}</div>
               </div>
               <div>
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">Cases</span>
-                <div className="font-semibold">{createdRun.totalCases} cases total</div>
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">{t('studio.th_cases', 'Cases')}</span>
+                <div className="font-semibold">{createdRun.totalCases} {t('studio.create.success_cases', 'cases')}</div>
               </div>
               <div>
                 <span className="text-xs text-muted-foreground uppercase tracking-wide">Profile</span>
@@ -522,7 +522,7 @@ export default function CreateRunPage() {
               </Button>
               <Button asChild>
                 <Link href={`/studio/run/${createdRun.runId}`}>
-                  Go to Run Details
+                  {t('studio.create.btn_view_details', 'View run details')}
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>

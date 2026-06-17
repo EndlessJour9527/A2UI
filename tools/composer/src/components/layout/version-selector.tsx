@@ -24,6 +24,7 @@
 
 import {useSpecVersion} from '@/contexts/spec-version-context';
 import type {SpecVersion} from '@/types/widget';
+import {useTranslation} from '@/contexts/language-context';
 
 const VERSIONS: {value: SpecVersion; label: string}[] = [
   {value: '0.8', label: 'v0.8'},
@@ -32,10 +33,11 @@ const VERSIONS: {value: SpecVersion; label: string}[] = [
 
 export function VersionSelector() {
   const {specVersion, setSpecVersion} = useSpecVersion();
+  const {t} = useTranslation();
 
   return (
     <div className="flex items-center gap-2 px-3 py-1">
-      <span className="text-xs font-medium text-muted-foreground">Spec</span>
+      <span className="text-xs font-medium text-muted-foreground">{t('sidebar.spec', 'Spec')}</span>
       <div className="flex flex-1 rounded-md bg-white/50 p-0.5">
         {VERSIONS.map(({value, label}) => (
           <button

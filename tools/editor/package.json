@@ -21,7 +21,7 @@
   },
   "wireit": {
     "serve": {
-      "command": "vite dev",
+      "command": "vite dev --host 0.0.0.0",
       "dependencies": [
         "build"
       ],

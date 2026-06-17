@@ -19,6 +19,7 @@
 import {useState, Component, type ReactNode} from 'react';
 import {Moon, Sun, AlertTriangle} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {useTranslation} from '@/contexts/language-context';
 import {A2UIViewer} from '@/lib/a2ui';
 import type {A2UIComponent, SpecVersion} from '@/types/widget';
 
@@ -28,7 +29,7 @@ import type {A2UIComponent, SpecVersion} from '@/types/widget';
  * and shows a fallback instead of crashing the entire editor.
  */
 class PreviewErrorBoundary extends Component<
-  {children: ReactNode; resetKey: string},
+  {children: ReactNode; resetKey: string; t: (key: string, def?: string) => string},
   {error: Error | null}
 > {
   state: {error: Error | null} = {error: null};
@@ -52,7 +53,7 @@ class PreviewErrorBoundary extends Component<
       return (
         <div className="flex flex-col items-center justify-center gap-3 p-8 text-muted-foreground">
           <AlertTriangle className="h-8 w-8 text-amber-500" />
-          <p className="text-sm font-medium">Preview unavailable</p>
+          <p className="text-sm font-medium">{this.props.t('editor.preview_unavailable', 'Preview unavailable')}</p>
           <p className="text-xs text-center max-w-xs">
             {this.state.error.message.length > 200
               ? this.state.error.message.substring(0, 200) + '...'
@@ -74,6 +75,7 @@ interface PreviewPaneProps {
 
 export function PreviewPane({root, components, data, specVersion}: PreviewPaneProps) {
   const [isDark, setIsDark] = useState(false);
+  const {t} = useTranslation();
 
   // Reset key changes when components change, clearing the error boundary
   const resetKey = JSON.stringify(components);
@@ -97,7 +99,7 @@ export function PreviewPane({root, components, data, specVersion}: PreviewPanePr
         </Button>
       </div>
       <div className="flex flex-1 items-start justify-center p-8 overflow-auto">
-        <PreviewErrorBoundary resetKey={resetKey}>
+        <PreviewErrorBoundary resetKey={resetKey} t={t}>
           <A2UIViewer
             root={root}
             components={components}

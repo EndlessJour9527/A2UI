@@ -31,6 +31,7 @@ import {PreviewPane} from './preview-pane';
 import {DataPanel} from './data-panel';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable';
 import {useWidgets} from '@/contexts/widgets-context';
+import {useTranslation} from '@/contexts/language-context';
 import type {Widget, DataState} from '@/types/widget';
 import type {A2UIComponent} from '@/types/widget';
 
@@ -40,6 +41,7 @@ interface WidgetEditorProps {
 
 export function WidgetEditor({widget}: WidgetEditorProps) {
   const {updateWidget} = useWidgets();
+  const {t} = useTranslation();
 
   // Local state for components (JSON string for editor)
   const [componentsJson, setComponentsJson] = useState(() =>
@@ -151,9 +153,9 @@ export function WidgetEditor({widget}: WidgetEditorProps) {
         <details className="my-4">
           <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors px-2 py-1">
             {isBuilding ? (
-              <span className="animate-pulse mb-4">Generating component...</span>
+              <span className="animate-pulse mb-4">{t('editor.generating_component', 'Generating component...')}</span>
             ) : (
-              <span>View details</span>
+              <span>{t('editor.view_details', 'View details')}</span>
             )}
           </summary>
           <pre className="mt-2 text-xs bg-card border border-border rounded-lg p-4 overflow-auto max-h-48 w-full font-mono text-card-foreground shadow-sm">

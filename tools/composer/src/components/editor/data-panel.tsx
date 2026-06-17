@@ -21,6 +21,7 @@ import {Plus, X} from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import {Button} from '@/components/ui/button';
 import {cn} from '@/lib/utils';
+import {useTranslation} from '@/contexts/language-context';
 import type {DataState} from '@/types/widget';
 
 interface DataPanelProps {
@@ -43,6 +44,7 @@ export function DataPanel({
   onDeleteState,
 }: DataPanelProps) {
   const activeState = dataStates[activeIndex];
+  const {t} = useTranslation();
   const [jsonValue, setJsonValue] = useState(() =>
     JSON.stringify(activeState?.data ?? {}, null, 2),
   );
@@ -68,7 +70,7 @@ export function DataPanel({
     if (!dataStates[index]) {
       return;
     }
-    const newName = prompt('Rename state:', dataStates[index].name);
+    const newName = prompt(t('editor.state_rename_prompt', 'Rename state:'), dataStates[index].name);
     if (newName && newName.trim()) {
       onRenameState(index, newName.trim());
     }

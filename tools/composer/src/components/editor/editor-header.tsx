@@ -19,6 +19,7 @@
 import {useState} from 'react';
 import {Copy, Check, Download} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {useTranslation} from '@/contexts/language-context';
 import type {Widget} from '@/types/widget';
 
 interface EditorHeaderProps {
@@ -27,6 +28,7 @@ interface EditorHeaderProps {
 
 export function EditorHeader({widget}: EditorHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const {t} = useTranslation();
 
   const handleCopyJson = async () => {
     const json = JSON.stringify(widget.components, null, 2);
@@ -64,7 +66,7 @@ export function EditorHeader({widget}: EditorHeaderProps) {
           onClick={handleCopyJson}
         >
           {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
-          {copied ? 'Copied!' : 'Copy JSON'}
+          {copied ? t('editor.copied', 'Copied!') : t('editor.copy_json', 'Copy JSON')}
         </Button>
         <Button
           size="sm"
@@ -72,7 +74,7 @@ export function EditorHeader({widget}: EditorHeaderProps) {
           onClick={handleDownload}
         >
           <Download className="h-4 w-4" />
-          Download
+          {t('editor.download', 'Download')}
         </Button>
       </div>
     </div>

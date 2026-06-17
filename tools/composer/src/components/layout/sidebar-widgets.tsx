@@ -22,6 +22,7 @@ import {usePathname, useRouter} from 'next/navigation';
 import {MoreHorizontal, Pencil, Trash2} from 'lucide-react';
 import {cn} from '@/lib/utils';
 import {useWidgets} from '@/contexts/widgets-context';
+import {useTranslation} from '@/contexts/language-context';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,7 @@ interface WidgetItemProps {
 }
 
 function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: WidgetItemProps) {
+  const {t} = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -99,8 +101,8 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
           onChange={e => setEditValue(e.target.value)}
           onBlur={handleRenameSubmit}
           onKeyDown={handleKeyDown}
-          placeholder="Widget name"
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          placeholder={t('sidebar.widget_name_placeholder', 'Widget name')}
+          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
         />
       </div>
     );
@@ -118,7 +120,7 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <span className="truncate flex-1">{name || 'Untitled widget'}</span>
+        <span className="truncate flex-1">{name || t('sidebar.untitled_widget', 'Untitled widget')}</span>
 
         <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger
@@ -138,7 +140,7 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
               }}
             >
               <Pencil className="mr-2 h-4 w-4" />
-              Rename
+              {t('sidebar.rename', 'Rename')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={e => {
@@ -148,7 +150,7 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
               className="text-red-600 focus:text-red-600"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+              {t('sidebar.delete', 'Delete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -157,10 +159,9 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('sidebar.delete_title', 'Delete ?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              All widget studio is stored locally on your device so there is no backup. This action
-              cannot be undone.
+              {t('sidebar.delete_desc', 'All widget studio is stored locally on your device so there is no backup. This action cannot be undone.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
@@ -168,10 +169,10 @@ function WidgetItem({id, name, isSelected, onRename, onDelete, onNavigate}: Widg
               onClick={onDelete}
               className="w-full rounded-full bg-red-600 hover:bg-red-700 cursor-pointer"
             >
-              Delete
+              {t('sidebar.delete', 'Delete')}
             </AlertDialogAction>
             <AlertDialogCancel className="w-full rounded-full cursor-pointer">
-              Cancel
+              {t('sidebar.cancel', 'Cancel')}
             </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -187,6 +188,7 @@ interface SidebarWidgetsProps {
 export function SidebarWidgets({onNavigate}: SidebarWidgetsProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const {t} = useTranslation();
   const {widgets, loading, updateWidget, removeWidget} = useWidgets();
 
   const handleRename = (id: string, newName: string) => {
@@ -206,12 +208,12 @@ export function SidebarWidgets({onNavigate}: SidebarWidgetsProps) {
 
   return (
     <div className="flex flex-col gap-2 h-full">
-      <span className="px-3 text-xs font-medium text-muted-foreground">Widgets</span>
+      <span className="px-3 text-xs font-medium text-muted-foreground">{t('sidebar.widgets', 'Widgets')}</span>
       <div className="flex flex-col gap-1 overflow-auto flex-1 min-h-0">
         {loading ? (
-          <div className="px-3 py-2 text-sm text-muted-foreground">Loading...</div>
+          <div className="px-3 py-2 text-sm text-muted-foreground">{t('sidebar.loading', 'Loading...')}</div>
         ) : widgets.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-muted-foreground">No widgets yet</div>
+          <div className="px-3 py-2 text-sm text-muted-foreground">{t('sidebar.no_widgets', 'No widgets yet')}</div>
         ) : (
           widgets.map(widget => (
             <WidgetItem
